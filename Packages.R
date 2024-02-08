@@ -1,13 +1,17 @@
 # Script with all necassary packages for the project - Emily Doyle Jan 2024
-#install.packages("")
+#install.packages("purrr")
+#pak::pkg_install("Permian-Global-Research/chewie")
 
 # Data reading
 #library(xlread)
 library(vroom)
+library(stringr)
+library(pak)
 
 # Data wrangling
 library(dplyr)
 library(tidyr)
+library(purrr)
 
 # Processing
 library(lidR)
