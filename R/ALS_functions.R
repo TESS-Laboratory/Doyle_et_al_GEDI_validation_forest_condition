@@ -74,6 +74,9 @@ filter_als <- function(LAScatalog){
 }
 
 
+
+
+
 # GEDI functions
 
 
@@ -114,6 +117,7 @@ gedi2A_batch_download <- function(poly_folder_path, start_date, end_date, fgb_ou
         rh45, rh50, rh55, rh60, rh65, rh70, rh75, rh80, rh85, rh90, rh95, rh97, rh98, rh99, rh100,
         sensitivity, shot_number, degrade_flag
       ) |>
+      mutate(shot_number=as.character(shot_number)) |>
       collect_gedi(gedi_find = gedi2a_search)
     
     # Add a new column with polygon ALS CRS for future reference
@@ -128,12 +132,62 @@ gedi2A_batch_download <- function(poly_folder_path, start_date, end_date, fgb_ou
     output_file <- file.path(fgb_output_folder, paste0(tools::file_path_sans_ext(basename(polygon_file)), "_2A.fgb"))
     
     # Save your GEDI GeoDataFrame to the output file
-    sf::st_write(gedi2a_sf, output_file, delete_dsn = TRUE)
+    sf::st_write(gedi2a_sf, output_file, delete_dsn = TRUE, overwrite = TRUE)
     
     }
 }
 
 
+
+gedi2B_batch_download <- function(poly_folder_path, start_date, end_date, fgb_output_folder) {
+  
+  # List all shapefiles in folder
+  shapefiles <- list.files(poly_folder_path, pattern = "\\.shp$", full.names = TRUE)
+  
+  # Process each shapefile
+  for (polygon_file in shapefiles) {
+    # Read the polygon from the shapefile
+    polygon <- st_read(polygon_file)
+    
+    # Display the polygon information for large batch progress
+    cat("Processing polygon:", polygon_file, "\n")
+    
+    # GEDI processing logic
+    gedi2b_search <- find_gedi(polygon,
+                               gedi_product = "2B",
+                               date_start = start_date,
+                               date_end = end_date)
+    
+    #Check if there are any GEDI files found
+    if (length(gedi2b_search) == 0) {
+      cat("No GEDI files found for polygon:", polygon_file, "\n")
+      next  # Skip to the next iteration if no GEDI files are found
+    }
+    
+    gedi2b_sf <- grab_gedi(gedi2b_search) |>
+      filter(
+        l2b_quality_flag == 1,
+        degrade_flag == 0
+      ) |>
+      mutate(year = lubridate::year(date_time)) |>
+      select(
+        lat_lowestmode, lon_lowestmode, year, shot_number, l2b_quality_flag, cover, pai, fhd_normal, pgap_theta, pgap_theta_error, omega, modis_treecover
+      ) |>
+      collect_gedi(gedi_find = gedi2b_search)
+    
+    
+    # Print information about the data frame before saving
+    #cat("Summary of gedi2b_sf:\n")
+    # print(summary(gedi2b_sf))
+    
+    # Generate a unique output file name based on the shapefile name
+    output_file <- file.path(fgb_output_folder, paste0(tools::file_path_sans_ext(basename(polygon_file)), "_2B.fgb"))
+    
+    # Save your GEDI GeoDataFrame to the output file
+    sf::st_write(gedi2b_sf, output_file, delete_dsn = TRUE, overwrite = TRUE)
+    
+  }
+}
 
 
 
