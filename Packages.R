@@ -11,6 +11,7 @@ library(pak)
 # Data wrangling
 library(dplyr)
 library(tidyr)
+library(broom)
 library(purrr)
 
 # Processing
