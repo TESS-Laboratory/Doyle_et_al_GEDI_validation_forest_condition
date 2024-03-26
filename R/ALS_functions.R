@@ -365,9 +365,9 @@ rh_linear_regression <- function(row) {
 # VISUALISATIONS FUNCTIONS
 
 # Create ggplot point graphs
-ggplot_point <- function(data, x_var, y_var, color_var, title, x_label, y_label) {
-  ggplot(data, aes_string(x = x_var, y = y_var, color = color_var)) +
-    geom_point() +
-    labs(title = title, x = x_label, y = y_label) +
-    theme_light()
-}
+#ggplot_point <- function(data, x_var, y_var, color_var, title, x_label, y_label) {
+#  ggplot(data, aes_string(x = x_var, y = y_var, color = color_var)) +
+#    geom_point() +
+ #   labs(title = title, x = x_label, y = y_label) +
+ #   theme_light()
+#}
