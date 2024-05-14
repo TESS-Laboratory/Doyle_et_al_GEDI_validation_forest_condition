@@ -66,6 +66,51 @@ process_als <- function(las)
 }
 
 
+process_alstest <- function(las_catalog) {
+  original_folder <- dirname(las_catalog@data[["filename"]][1])
+  
+  process_las <- function(las, step_name) {
+    step_folder <- file.path(original_folder, paste0(step_name, "_", las@data$XLEFT, "_", las@data$YBOTTOM))
+    
+    if (!dir.exists(step_folder)) {
+      dir.create(step_folder)
+    }
+    
+    opt_output_files(las) <- paste0(step_folder, "/final_{XLEFT}_{YBOTTOM}")
+    
+    # Filter for duplicates
+    if (step_name == "dup") {
+      dup_las <- filter_duplicates(las)
+      writeLAS(dup_las, paste0(step_folder, "/dup_", basename(las@data$filename)))
+      return(dup_las)
+    }
+    
+    # Ground classification - Cloth Simulation Function (Zhang 2016)
+    if (step_name == "grnd") {
+      grnd_las <- classify_ground(dup_las, algorithm = csf())
+      writeLAS(grnd_las, paste0(step_folder, "/grnd_", basename(las@data$filename)))
+      return(grnd_las)
+    }
+    
+    # Height normalization
+    if (step_name == "norm") {
+      norm_las <- normalize_height(grnd_las, tin())
+      writeLAS(norm_las, paste0(step_folder, "/norm_", basename(las@data$filename)))
+      return(norm_las)
+    }
+  }
+  
+  # Process each step for the catalog
+  for (step_name in c("dup", "grnd", "norm")) {
+    las_catalog <- catalog_map(las_catalog, process_las, step_name = step_name)
+  }
+  
+  return(las_catalog)
+}
+
+
+
+
 # Select classifications of ALS data and filter catalog for anomalous points
 filter_als <- function(LAScatalog){
   # Filter for classification
@@ -73,19 +118,6 @@ filter_als <- function(LAScatalog){
   opt_filter(LAScatalog) <- "-drop_z_below 0"
   opt_filter(LAScatalog) <- "-drop_z_above 70"
   return(LAScatalog)
-}
-
-
-# Function to move files from source folder to destination folder (for LASCatalog)
-move_files <- function(source_folder, destination_folder, file_extensions) {
-  # List files in the source folder
-  files <- list.files(source_folder, full.names = TRUE)
-  
-  # Filter files with the specific file extensions
-  files_to_move <- files[str_detect(files, paste0("\\.", paste(file_extensions, collapse = "|"), "$"))]
-  
-  # Copy files to the destination folder
-  file.copy(files_to_move, destination_folder, overwrite = TRUE)
 }
 
 
