@@ -1,4 +1,5 @@
-## Script for the analysis of paper 'Doyle et al...' 
+## Script for the analysis of paper 'Doyle et al...' for the validation of the use of GEDI data 
+## in degraded Amazon rainforest
 
 # Reload all packages and functions
 reload <- function() {
@@ -17,16 +18,9 @@ mapviewOptions(platform = "leafgl")
 options(mapviewMaxPixels = 1000000000)
 
 
-# SEE WHERE TO INSERT THIS????
-# Checking if ALS lidar and GEDI dataframe are the same CRS
-st_distance(als, GEDI_gradient_ALS)
-st_crs(als)
-
-# Reprojecting the GEDI dataframe
-GEDI_gradient_ALScrs = st_transform(GEDI_gradient_ALS, "EPSG:31980")
-GEDI_gradient_ALScrs = st_set_crs(GEDI_gradient_ALS, "EPSG:31980")
-st_crs(GEDI_gradient_ALScrs)
-
+# MISSED OFF GEDI FOR DAAC22S SO RERUN WHOLE PROJECT WITH THOSE INCLUDED
+# RERUN ALS 20S/ CAUTARIO SO OUTPUT IS .LAZ FILE
+# MAKE TABLES/ GRAPHS IN R?
 
 
 # ----- PRE-PROCESS ALS --------
@@ -62,43 +56,48 @@ las_check(DAAC18_19S_norm)
 # SOME OF THIS NEEDS TO GO DOWN TO ALS/GEDI EXTRACTION
 # Filter the data for anomalous results
 
-DAAC18_19S_norm <- filter_als(DAAC18_19S_norm)
-DAAC18CAUT23_20S_norm <- filter_als(DAAC18_20S_norm)
-DAAC18_21S_norm <- filter_als(DAAC18_21S_norm)
-DAAC18_22S_norm <- filter_als(DAAC18_22S_norm)
+DAAC18_19Sfinal <- filter_als(DAAC18_19S_norm)
+DAAC18CAUT23_20Sfinal <- filter_als(DAAC18_20S_norm)
+DAAC18_21Sfinal <- filter_als(DAAC18_21S_norm)
+DAAC18_22Sfinal<- filter_als(DAAC18_22S_norm)
 
 # Set CRS of new catalog tiles to specified UTM
 
-st_crs(DAAC18_19S_norm) <- 32719
-st_crs(DAAC18CAUT23_20S_norm) <- 32720
-st_crs(DAAC18_21S_norm) <- 32721
-st_crs(DAAC18_22S_norm) <- 32722
+st_crs(DAAC18_19Sfinal) <- 32719
+st_crs(DAAC18CAUT23_20Sfinal) <- 32720
+st_crs(DAAC18_21Sfinal) <- 32721
+st_crs(DAAC18_22Sfinal) <- 32722
 
 # Create DTM for ability to determine extent of the .laz regions for GEDI overlap
 
-dtm_DAAC18_19S <- rasterize_terrain(DAAC18_19S_norm, 2, tin(), pkg = "terra")
-dtm_DAAC18CAUT23_20S <- rasterize_terrain(DAAC18CAUT23_20S_norm, 2, tin(), pkg = "terra")
-dtm_DAAC18_21S <- rasterize_terrain(DAAC18_21S_norm, 2, tin(), pkg = "terra")
-dtm_DAAC18_22S <- rasterize_terrain(DAAC18_22S_norm, 2, tin(), pkg = "terra")
+dtm_DAAC18_19S <- rasterize_terrain(DAAC18_19Sfinal, 2, tin(), pkg = "terra")
+dtm_DAAC18CAUT23_20S <- rasterize_terrain(DAAC18CAUT23_20Sfinal, 2, tin(), pkg = "terra")
+dtm_DAAC18_21S <- rasterize_terrain(DAAC18_21Sfinal, 2, tin(), pkg = "terra")
+dtm_DAAC18_22S <- rasterize_terrain(DAAC18_22Sfinal, 2, tin(), pkg = "terra")
 
 writeRaster(dtm_DAAC18_19S, "/Users/emilydoyle/Library/CloudStorage/OneDrive-UniversityofExeter/DAAC_lidar/dtm_DAAC18_19S.tif", overwrite=TRUE)
 writeRaster(dtm_DAAC18CAUT23_20S, "/Users/emilydoyle/Library/CloudStorage/OneDrive-UniversityofExeter/DAAC_lidar/dtm_DAAC18CAUT23_20S.tif", overwrite=TRUE)
 writeRaster(dtm_DAAC18_21S, "/Users/emilydoyle/Library/CloudStorage/OneDrive-UniversityofExeter/DAAC_lidar/dtm_DAAC18_21S.tif", overwrite=TRUE)
 writeRaster(dtm_DAAC18_22S, "/Users/emilydoyle/Library/CloudStorage/OneDrive-UniversityofExeter/DAAC_lidar/dtm_DAAC18_22S.tif", overwrite=TRUE)
 
+# Polygon files for the ALS extents can now be created in QGIS to use for GEDI download
+# Remove ALS catalogs from the environment for now
+rm(DAAC18_19S, DAAC18CAUT23_20S, DAAC18_21S, DAAC18_22S, retile_DAAC18_19S, retile_DAAC18CAUT23_20S, 
+   retile_DAAC18_21S, retile_DAAC18_22S, DAAC18_19S_norm, DAAC18CAUT23_20S_norm, DAAC18_21S_norm, 
+   DAAC18_22S_norm, dtm_DAAC18_19S, dtm_DAAC18CAUT23_20S, dtm_DAAC18_21S, dtm_DAAC18_22S)
 
 
 # ----------- GEDI download ERRORS NEED FIXING ----------------
 
-#THIS NEEDS SOME WORL - SOME ERRORS in 2B DOWNLOAD WITH SOME OF THE CAUTARIO FILES
+#THIS NEEDS SOME WORK - SOME ERRORS in 2B DOWNLOAD WITH SOME OF THE CAUTARIO FILES
 
 # Download GEDI2A files for all polygon shapefiles in a folder,
 # creating output geodataframe for each AOI
 # Reading all of the 2A output .fgb files into one geodatabase
 
-poly_folder_path <- "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Input_data/CAUTARIO_polygons"
-start_date <- "2022-01-01"
-end_date <- "2023-12-31"
+poly_folder_path <- "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Input_data/DAAC_polygons"
+start_date <- "2019-01-01"
+end_date <- "2019-12-31"
 fgb_output_folder <- "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/GEDI2A"
 
 gedi2A_batch_download(poly_folder_path, start_date, end_date, fgb_output_folder)
@@ -112,8 +111,6 @@ sf::st_write(allGEDI2A, "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_
 
 #allGEDI2A <- read_sf("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI2A.fgb")
 mapview(allGEDI2A) + mapview(secondaryforest2023)
-
-
 
 
 # Download GEDI2B files for all polygon shapefiles in a folder,
@@ -138,8 +135,6 @@ sf::st_write(allGEDI2B, "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_
 
 #allGEDI2B <- read_sf("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI2B.fgb")
 mapview(allGEDI2B)
-
-
 
 
 # Download GEDI4A files for all polygon shapefiles in a folder,
@@ -246,7 +241,7 @@ sf::st_write(allGEDI2A_reg, "/Users/emilydoyle/Documents/workspace_data/Doyle_et
 
 
 
-# ------- Forest spectral classification ---------
+# ------- Forest spectral classification MODIS AND SECONDARY FOREST---------
 
 # DOWNLOAD/MANIPULATION OF SECONDARY FOREST DATASET
 # Set directories and file names
@@ -317,6 +312,9 @@ mapview(secondaryforest2023, layer.name = 'Secondary forest age', na.color="tran
 
 
 # COROBORATE MODIS AND SECONDARY FOREST
+
+
+
 
 
 
@@ -466,103 +464,90 @@ sf::st_write(allGEDI_gradient, "/Users/emilydoyle/Documents/workspace_data/Doyle
 
 rm(allGEDI2A, allGEDI2A_aged, allGEDI2A_intact, allGEDI2A_intact_sample, allGEDI2A_sec)
 
-# ------ Extracting metrics and canopy cover from ALS within GEDI footprints ------
+# ------ Extracting ALS metrics within GEDI footprints ------
+
+# As the ALS data spans different parts of the Amazon rainforest, they are separated in folders by their
+# CRS. Each ALS folder must therefore extract data from the GEDI footprints separately before being merged.
+
+# Reaload/filter and set CRS of final ALS catalogs if no longer in environment
+
+# DAAC18_19Sfinal <- readLAScatalog('/Users/emilydoyle/Library/CloudStorage/OneDrive-UniversityofExeter/LIDAR/DAAC18_19S/final_norm')
+# DAAC18CAUT23_20Sfinal <- readLAScatalog('/Users/emilydoyle/Library/CloudStorage/OneDrive-UniversityofExeter/LIDAR/DAAC18CAUT23_20S/final_norm')
+# DAAC18_21Sfinal <- readLAScatalog('/Users/emilydoyle/Library/CloudStorage/OneDrive-UniversityofExeter/LIDAR/DAAC18_21S/final_norm')
+# DAAC18_22Sfinal <- readLAScatalog('/Users/emilydoyle/Library/CloudStorage/OneDrive-UniversityofExeter/LIDAR/DAAC18_22S/final_norm')
+# 
+# DAAC18_19Sfinal <- filter_als(DAAC18_19Sfinal)
+# DAAC18CAUT23_20Sfinal <- filter_als(DAAC18CAUT23_20Sfinal)
+# DAAC18_21Sfinal <- filter_als(DAAC18_21Sfinal)
+# DAAC18_22Sfinal <- filter_als(DAAC18_22Sfinal)
+# 
+# st_crs(DAAC18_19Sfinal) <- 32719
+# st_crs(DAAC18CAUT23_20Sfinal) <- 32720
+# st_crs(DAAC18_21Sfinal) <- 32721
+# st_crs(DAAC18_22Sfinal) <- 32722
 
 
-# THIS NEEDS WORK, IT IS GOING TO HAVE TO BE DONE MANUALLY FOR EACH CRS
+# Filter and reproject the GEDI dataframe to match each CRS catalog
 
-# Load the ALS catalog of the final processed .laz files
-
-final_ALS <- readLAScatalog('/Users/emilydoyle/Library/CloudStorage/OneDrive-UniversityofExeter/final_ALS_Chap1')
-
-
-# Sort of works! Metric extraction (doesn't work with above catalog processing function)
-# Currently using both allGEDI2A and allGEDI as 2A has height and regressions 
-# and allGEDI has canopy and carbon
-
-als_metrics <- plot_metrics(fin_catalog, .stdmetrics_z, allGEDI2A_gradient, radius = 12.5)
+allGEDI2A_19S <- filter_reproj_GEDI(allGEDI2A, '19S', 'EPSG:32719')
+allGEDI2A_20S <- filter_reproj_GEDI(allGEDI2A, '20S', 'EPSG:32720')
+allGEDI2A_21S <- filter_reproj_GEDI(allGEDI2A, '21S', 'EPSG:32721')
+allGEDI2A_22S <- filter_reproj_GEDI(allGEDI2A, '22S', 'EPSG:32722')
+st_crs(allGEDI2A_19S) #, allGEDI2A_20S, allGEDI2A_21S, allGEDI2A_22S)
 
 
-# Custom function to calculate canopy cover for circular plots within a polygonal footprint
-calculate_canopy_cover <- function(las, footprint, cutoff) {
-  # Create circular plots within the polygonal footprint
-  plots <- plot_metrics(las, ~list(buffer_points(., radius = 12.5)), footprint)
-  
-  # Classify points based on first returns above cutoff
-  las$vegetation <- las$Z > cutoff
-  
-  # Compute canopy cover for each circular plot
-  canopy_cover <- plot_metrics(las, ~sum(vegetation) / point_density() * 100, plots)
-  
-  return(canopy_cover)
-}
+ # Extracting metrics of ALS within GEDI footprints in the same CRS
 
-# Example usage:
-# Assuming fin_catalog is your LAScatalog and footprints is a LAS object
-cutoff <- 2  # adjust the cutoff value as needed
-als_canopy_cover <- calculate_canopy_cover(fin_catalog, footprints, cutoff)
+DAAC18_19Smetrics <- plot_metrics(DAAC18_19Sfinal, ~lidar_preds(Z, ReturnNumber, min = 0, max = Inf), allGEDI2A_19S, radius = 12.5)
+DAAC18CAUT23_20Smetrics <- plot_metrics(DAAC18CAUT23_20Sfinal, ~lidar_preds(Z, ReturnNumber, min = 0, max = Inf), allGEDI2A_20S, radius = 12.5)
+DAAC18_21Smetrics <- plot_metrics(DAAC18_21Sfinal, ~lidar_preds(Z, ReturnNumber, min = 0, max = Inf), allGEDI2A_21S, radius = 12.5)
+DAAC18_22Smetrics <- plot_metrics(DAAC18_22Sfinal, ~lidar_preds(Z, ReturnNumber, min = 0, max = Inf), allGEDI2A_22S, radius = 12.5)
 
 
-# NEED TO WRITE FUNCTIONS TO EXTRACT FROM ALS
+# Merging metrics and using control CRS (WGS84) associated with GEDI data now extraction is complete
 
-#*stats between GEDI and ALS
-#*random forest model
-#*
-#*
-#*# THE GEDI DATA HAS THE CRS OM IT< MAY HAVE TO SEPARATE THESE OUT INTO 
-#*5 SEPARATE EXTRACTIONS WITH GEDI BEING CRS TO THE CRS OF THE  ALS THEN MERGED
+DAAC18_19Smetrics <- st_transform(allGEDI2A19S_metrics, "EPSG:32643")
+DAAC18CAUT23_20Smetrics <- st_transform(allGEDI2A20S_metrics, "EPSG:32643")
+DAAC18_21Smetrics <- st_transform(allGEDI2A21S_metrics, "EPSG:32643")
+DAAC18_22Smetrics <- st_transform(allGEDI2ACAUT20S_metrics, "EPSG:32643")
 
-# TEMPORARILY MERGING CATALOGS (600ish points) these dataframe were made on server individually
-
-allGEDI2A_19S_metrics <- read_sf("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/allGEDI2A_19S_metrics.fgb")
-allGEDI2A_20S_metrics <- read_sf("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/allGEDI2A_20S_metrics.fgb")
-allGEDI2A_21S_metrics <- read_sf("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/allGEDI2A_21S_metrics.fgb")
-allGEDI2A_CAUT20S_metrics <- read_sf("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/allGEDI2A_CAUT20S_metrics.fgb")
-
-allGEDI2A_19S_metrics <- st_transform(allGEDI2A_19S_metrics, "EPSG:32643")
-allGEDI2A_20S_metrics <- st_transform(allGEDI2A_20S_metrics, "EPSG:32643")
-allGEDI2A_21S_metrics <- st_transform(allGEDI2A_21S_metrics, "EPSG:32643")
-allGEDI2A_CAUT20S_metrics <- st_transform(allGEDI2A_CAUT20S_metrics, "EPSG:32643")
-
-st_crs(allGEDI2A_19S_metrics)
+st_crs(allGEDI2A19S_metrics)
 
 # Remove duplicated rows
-allGEDI2A_19S_metrics <- distinct(allGEDI2A_19S_metrics)
-allGEDI2A_20S_metrics <- distinct(allGEDI2A_20S_metrics)
-allGEDI2A_21S_metrics <- distinct(allGEDI2A_21S_metrics)
-allGEDI2A_CAUT20S_metrics <- distinct(allGEDI2A_CAUT20S_metrics)
+DAAC18_19Smetrics <- distinct(DAAC18_19Smetrics)
+DAAC18CAUT23_20Smetrics <- distinct(DAAC18CAUT23_20Smetrics)
+DAAC18_21Smetrics <- distinct(DAAC18_21Smetrics)
+DAAC18_22Smetrics <- distinct(DAAC18_22Smetrics)
 
-# Example: Standardizing column names
 # Assuming columns are in the same order and just have different names
-colnames(allGEDI2A_20S_metrics) <- colnames(allGEDI2A_19S_metrics)
-colnames(allGEDI2A_21S_metrics) <- colnames(allGEDI2A_19S_metrics)
-colnames(allGEDI2A_CAUT20S_metrics) <- colnames(allGEDI2A_19S_metrics)
+colnames(DAAC18CAUT23_20Smetrics) <- colnames(DAAC18_19Smetrics)
+colnames(DAAC18_21Smetrics) <- colnames(DAAC18_19Smetrics)
+colnames(DAAC18_22Smetrics) <- colnames(DAAC18_19Smetrics)
 
 # Combine the dataframes into one dataframe using bind_rows
-merged_df <- bind_rows(allGEDI2A_19S_metrics, 
-                       allGEDI2A_20S_metrics,
-                       allGEDI2A_21S_metrics,
-                       allGEDI2A_CAUT20S_metrics)
+merged_df <- bind_rows(DAAC18_19Smetrics, 
+                       DAAC18CAUT23_20Smetrics,
+                       DAAC18_21Smetrics,
+                       DAAC18_22Smetrics)
 
+
+# WORK ON THIS BIT
 # Remove rows with NAs in the 'year' column
 allheight <- merged_df %>%
-  filter(!is.na(zq95))
+  filter(!is.na(rhz95))
 
 sf::st_write(allheight, "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allheight_draft.fgb", delete_dsn = TRUE, overwrite = TRUE)
 allheight <- read_sf("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allheight_draft.fgb")
 
 
+# MERGE GEDI GRADIENT AND PICK THE USEFUL BITS?
 
 
+rm(allGEDI2A_19S, allGEDI2A_20S, allGEDI2A_21S, allGEDI2A_22S, DAAC18_19Sfinal, 
+   DAAC18_20Sfinal, DAAC18_21Sfinal, DAAC18_22Sfinal, DAAC18_19Smetrics, DAAC18_20Smetrics,
+   DAAC18_21Smetrics, DAAC18_22Smetrics)
 
-
-
-
-
-
-
-
-# ------ Statistics ---------
+# ------ Statistics CHECK ---------
 
 # EXAMPLE CODE OF A LINS CCC
 # Plot Tramway Runscomparison of resampling
@@ -856,7 +841,7 @@ plot(pca_intact, main = "PCA for Intact Data")
 
 
 
-# ------- Graphs/ visulisations -------
+# ------- Graphs/ visulisations CHECK-------
 
 
 allheight <- allheight %>%

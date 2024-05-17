@@ -18,6 +18,7 @@ library(purrr)
 # Processing
 library(lidR)
 library(chewie)
+library(ca)
 
 # Spatial data
 library(sf)
@@ -30,7 +31,7 @@ library(gtsummary)
 # Visualisation
 library(mapview)
 library(ggplot2)
-
+library(plotly)
 
 # Communications
 library(cli)
