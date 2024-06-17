@@ -18,12 +18,8 @@ mapviewOptions(platform = "leafgl")
 options(mapviewMaxPixels = 1000000000)
 
 
-# MISSED OFF GEDI FOR DAAC22S SO RERUN WHOLE PROJECT WITH THOSE INCLUDED
-# RERUN ALS 20S/ CAUTARIO SO OUTPUT IS .LAZ FILE
-# MAKE TABLES/ GRAPHS IN R?
 
-
-# ----- PRE-PROCESS ALS --------
+# ----- PRE-PROCESS ALS done -------- 
 # ALS data is sourced from Sustainable Landscapes Brazil project (2018), downloaded into coordinate reference system (CRS)
 # regions with the format 'DAAC_year_CRS'. Data is also sourced from Permian Global in 2023 for Rio Cautario. 
 # ALS data is combined but catalogs are separated by their CRS.
@@ -31,14 +27,12 @@ options(mapviewMaxPixels = 1000000000)
 # Load and retile (DAAC) catalog for consistency between various ALS sources
 
 DAAC18_19S <- readLAScatalog('/Users/emilydoyle/Library/CloudStorage/OneDrive-UniversityofExeter/LIDAR/DAAC18_19S')
-DAAC18CAUT23_20S <- readLAScatalog('/Users/emilydoyle/Library/CloudStorage/OneDrive-UniversityofExeter/LIDAR/DAAC18CAUT23_20S')
-DAAC18_21S <- readLAScatalog('/Users/emilydoyle/Library/CloudStorage/OneDrive-UniversityofExeter/LIDAR/DAAC18_21S')
-DAAC18_22S <- readLAScatalog('/Users/emilydoyle/Library/CloudStorage/OneDrive-UniversityofExeter/LIDAR/DAAC18_22S')
+CAUT23_20S <- readLAScatalog('/Users/emilydoyle/Library/CloudStorage/OneDrive-UniversityofExeter/LIDAR/CAUT23_20S')
+DAAC1821_21S <- readLAScatalog('/Users/emilydoyle/Library/CloudStorage/OneDrive-UniversityofExeter/LIDAR/DAAC1821_21S')
 
 retile_DAAC18_19S <- retile_catalog_pref(DAAC18_19S)
-retile_DAAC18CAUT23_20S <- retile_catalog_pref(DAAC18CAUT23_20S)
-retile_DAAC18_21S <- retile_catalog_pref(DAAC18_21S)
-retile_DAAC18_22S <- retile_catalog_pref(DAAC18_22S)
+retile_CAUT23_20S <- retile_catalog_pref(CAUT23_20S)
+retile_DAAC1821_21S <- retile_catalog_pref(DAAC1821_21S)
 
 # Check new catalog
 las_check(retile_DAAC18_19S)
@@ -47,53 +41,47 @@ plot(retile_DAAC18_19S, mapview = TRUE, map.type = "Esri.WorldImagery")
 # Process the retiled ALS
 
 DAAC18_19S_norm <- process_als(retile_DAAC18_19S)
-DAAC18CAUT23_20S_norm <- process_als(retile_DAAC18CAUT23_20S)
-DAAC18_21S_norm <- process_als(retile_DAAC18_21S)
-DAAC18_22S_norm <- process_als(retile_DAAC18_22S)
+CAUT23_20S_norm <- process_als(retile_CAUT23_20S)
+DAAC1821_21S_norm <- process_als(retile_DAAC1821_21S)
 
-las_check(DAAC18_19S_norm)
+
+las_check(DAAC1821_19S_norm)
 
 # SOME OF THIS NEEDS TO GO DOWN TO ALS/GEDI EXTRACTION
 # Filter the data for anomalous results
 
 DAAC18_19Sfinal <- filter_als(DAAC18_19S_norm)
-DAAC18CAUT23_20Sfinal <- filter_als(DAAC18_20S_norm)
-DAAC18_21Sfinal <- filter_als(DAAC18_21S_norm)
-DAAC18_22Sfinal<- filter_als(DAAC18_22S_norm)
+CAUT23_20Sfinal <- filter_als(DAAC18_20S_norm)
+DAAC1821_21Sfinal <- filter_als(DAAC1821_21S_norm)
 
 # Set CRS of new catalog tiles to specified UTM
 
 st_crs(DAAC18_19Sfinal) <- 32719
-st_crs(DAAC18CAUT23_20Sfinal) <- 32720
-st_crs(DAAC18_21Sfinal) <- 32721
-st_crs(DAAC18_22Sfinal) <- 32722
+st_crs(CAUT23_20Sfinal) <- 32720
+st_crs(DAAC1821_21Sfinal) <- 32721
 
 # Create DTM for ability to determine extent of the .laz regions for GEDI overlap
 
 dtm_DAAC18_19S <- rasterize_terrain(DAAC18_19Sfinal, 2, tin(), pkg = "terra")
-dtm_DAAC18CAUT23_20S <- rasterize_terrain(DAAC18CAUT23_20Sfinal, 2, tin(), pkg = "terra")
-dtm_DAAC18_21S <- rasterize_terrain(DAAC18_21Sfinal, 2, tin(), pkg = "terra")
-dtm_DAAC18_22S <- rasterize_terrain(DAAC18_22Sfinal, 2, tin(), pkg = "terra")
+dtm_CAUT23_20S <- rasterize_terrain(CAUT23_20Sfinal, 2, tin(), pkg = "terra")
+dtm_DAAC1821_21S <- rasterize_terrain(DAAC1821_21Sfinal, 2, tin(), pkg = "terra")
 
 writeRaster(dtm_DAAC18_19S, "/Users/emilydoyle/Library/CloudStorage/OneDrive-UniversityofExeter/DAAC_lidar/dtm_DAAC18_19S.tif", overwrite=TRUE)
-writeRaster(dtm_DAAC18CAUT23_20S, "/Users/emilydoyle/Library/CloudStorage/OneDrive-UniversityofExeter/DAAC_lidar/dtm_DAAC18CAUT23_20S.tif", overwrite=TRUE)
-writeRaster(dtm_DAAC18_21S, "/Users/emilydoyle/Library/CloudStorage/OneDrive-UniversityofExeter/DAAC_lidar/dtm_DAAC18_21S.tif", overwrite=TRUE)
-writeRaster(dtm_DAAC18_22S, "/Users/emilydoyle/Library/CloudStorage/OneDrive-UniversityofExeter/DAAC_lidar/dtm_DAAC18_22S.tif", overwrite=TRUE)
+writeRaster(dtm_CAUT23_20S, "/Users/emilydoyle/Library/CloudStorage/OneDrive-UniversityofExeter/DAAC_lidar/dtm_CAUT23_20S.tif", overwrite=TRUE)
+writeRaster(dtm_DAAC1821_21S, "/Users/emilydoyle/Library/CloudStorage/OneDrive-UniversityofExeter/DAAC_lidar/dtm_DAAC1821_21S.tif", overwrite=TRUE)
 
 # Polygon files for the ALS extents can now be created in QGIS to use for GEDI download
 # Remove ALS catalogs from the environment for now
-rm(DAAC18_19S, DAAC18CAUT23_20S, DAAC18_21S, DAAC18_22S, retile_DAAC18_19S, retile_DAAC18CAUT23_20S, 
-   retile_DAAC18_21S, retile_DAAC18_22S, DAAC18_19S_norm, DAAC18CAUT23_20S_norm, DAAC18_21S_norm, 
-   DAAC18_22S_norm, dtm_DAAC18_19S, dtm_DAAC18CAUT23_20S, dtm_DAAC18_21S, dtm_DAAC18_22S)
+rm(DAAC18_19S, CAUT23_20S, DAAC1821_21S, retile_DAAC18_19S, retile_CAUT23_20S, 
+   retile_DAAC1821_21S, DAAC18_19S_norm, CAUT23_20S_norm, DAAC1821_21S_norm, 
+   dtm_DAAC18_19S, dtm_CAUT23_20S, dtm_DAAC1821_21S)
 
 
 # ----------- GEDI download ERRORS NEED FIXING ----------------
 
-#THIS NEEDS SOME WORK - SOME ERRORS in 2B DOWNLOAD WITH SOME OF THE CAUTARIO FILES
-
-# Download GEDI2A files for all polygon shapefiles in a folder,
-# creating output geodataframe for each AOI
-# Reading all of the 2A output .fgb files into one geodatabase
+# Download GEDI2A files for all polygon shapefiles in a folder, creating output geodataframe for each AOI
+# Files are downloaded to correspond with ALS data e.g. DAAC ALS 2018 = 2019-01-01 to 2019-12-31
+# DAAC 2021 = 2020-06-01 to 2022-06-01 and CAUTARIO 2023 = 2022-01-01 to 2024-06-01 (year gap in 23-24 collection)
 
 poly_folder_path <- "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Input_data/DAAC_polygons"
 start_date <- "2019-01-01"
@@ -101,6 +89,40 @@ end_date <- "2019-12-31"
 fgb_output_folder <- "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/GEDI2A"
 
 gedi2A_batch_download(poly_folder_path, start_date, end_date, fgb_output_folder)
+
+poly_folder_path <- "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Input_data/DAAC_2021_polygons"
+start_date <- "2020-06-01"
+end_date <- "2022-06-01"
+fgb_output_folder <- "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/GEDI2A"
+
+gedi2A_batch_download(poly_folder_path, start_date, end_date, fgb_output_folder)
+
+poly_folder_path <- "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Input_data/CAUTARIO_polygons"
+start_date <- "2022-01-01"
+end_date <- "2024-06-01"
+fgb_output_folder <- "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/GEDI2A"
+
+gedi2A_batch_download(poly_folder_path, start_date, end_date, fgb_output_folder)
+
+
+# Define the parameters as lists
+params <- list(
+  start_date = c("2019-01-01", "2020-06-01", "2022-01-01"),
+  end_date = c("2019-12-31", "2022-06-01", "2024-06-01"),
+  poly_folder_path = c("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Input_data/DAAC_polygons",
+            "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Input_data/DAAC_2021_polygons",
+            "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Input_data/CAUTARIO_polygons"),
+  fgb_output_folder = c("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/GEDI2A"))
+
+# Use pmap to call gedi_batch_download with the parameters
+pmap(params, gedi_batch_download)
+
+
+
+
+
+
+# Reading all of the 2A output .fgb files into one geodatabase
 
 fgb_files <- list.files(path = fgb_output_folder, pattern = "\\.fgb$", full.names = TRUE)
 fgb_list <- lapply(fgb_files, st_read)
@@ -113,18 +135,32 @@ sf::st_write(allGEDI2A, "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_
 mapview(allGEDI2A) + mapview(secondaryforest2023)
 
 
-# Download GEDI2B files for all polygon shapefiles in a folder,
-# creating output geodataframe for each AOI
-# then reading all of the 2B output .fgb files into one geodatabase
 
-poly_folder_path <- "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Input_data/CAUTARIO_polygons"
-start_date <- "2022-01-01"
-end_date <- "2023-12-31"
+
+# Download GEDI2B files for all polygon shapefiles in a folder,creating output geodataframe for each AOI
+
+poly_folder_path <- "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Input_data/DAAC_polygons"
+start_date <- "2019-01-01"
+end_date <- "2019-12-31"
 fgb_output_folder <- "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/GEDI2B"
 
 gedi2B_batch_download(poly_folder_path, start_date, end_date, fgb_output_folder)
 
-#oneGEDI2B <- st_read("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/GEDI2B/DAAC1819S_1_2B.fgb")
+poly_folder_path <- "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Input_data/DAAC_2021_polygons"
+start_date <- "2020-06-01"
+end_date <- "2022-06-01"
+fgb_output_folder <- "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/GEDI2B"
+
+gedi2B_batch_download(poly_folder_path, start_date, end_date, fgb_output_folder)
+
+poly_folder_path <- "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Input_data/CAUTARIO_polygons"
+start_date <- "2022-01-01"
+end_date <- "2024-06-01"
+fgb_output_folder <- "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/GEDI2B"
+
+gedi2B_batch_download(poly_folder_path, start_date, end_date, fgb_output_folder)
+
+# Reading all of the 2B output .fgb files into one geodatabase
 
 fgb_files <- list.files(path = fgb_output_folder, pattern = "\\.fgb$", full.names = TRUE)
 fgb_list <- lapply(fgb_files, st_read)
@@ -137,16 +173,32 @@ sf::st_write(allGEDI2B, "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_
 mapview(allGEDI2B)
 
 
-# Download GEDI4A files for all polygon shapefiles in a folder,
-# creating output geodataframe for each AOI
-# then reading all of the 2B output .fgb files into one geodatabase
 
-poly_folder_path <- "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Input_data/CAUTARIO_polygons"
+
+# Download GEDI4A files for all polygon shapefiles in a folder,creating output geodataframe for each AOI
+
+poly_folder_path <- "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Input_data/DAAC_polygons"
 start_date <- "2019-01-01"
-end_date <- "2020-01-01"
+end_date <- "2019-12-31"
 fgb_output_folder <- "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/GEDI4A"
 
 gedi4A_batch_download(poly_folder_path, start_date, end_date, fgb_output_folder)
+
+poly_folder_path <- "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Input_data/DAAC_2021_polygons"
+start_date <- "2020-06-01"
+end_date <- "2022-06-01"
+fgb_output_folder <- "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/GEDI4A"
+
+gedi4A_batch_download(poly_folder_path, start_date, end_date, fgb_output_folder)
+
+poly_folder_path <- "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Input_data/CAUTARIO_polygons"
+start_date <- "2022-01-01"
+end_date <- "2024-06-01"
+fgb_output_folder <- "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/GEDI4A"
+
+gedi4A_batch_download(poly_folder_path, start_date, end_date, fgb_output_folder)
+
+# Reading all of the 4A output .fgb files into one geodatabase
 
 fgb_files <- list.files(path = fgb_output_folder, pattern = "\\.fgb$", full.names = TRUE)
 fgb_list <- lapply(fgb_files, st_read)
@@ -192,6 +244,34 @@ allGEDIdata <- st_sf(allGEDInosf, geometry = geometry_sf)
 
 # NOW HAS NO GEOMETRY, NEED TO FIX
 
+# Ensure the CRS (Coordinate Reference System) is the same for all datasets
+allGEDI2B <- st_transform(allGEDI2B, st_crs(allGEDI2A))
+allGEDI4A <- st_transform(allGEDI4A, st_crs(allGEDI2A))
+
+# Remove geometries
+allGEDI2A_no_geom <- st_set_geometry(allGEDI2A, NULL)
+allGEDI2B_no_geom <- st_set_geometry(allGEDI2B, NULL)
+allGEDI4A_no_geom <- st_set_geometry(allGEDI4A, NULL)
+
+# Merge datasets based on shot_number
+merged_data <- allGEDI2A_no_geom %>%
+  left_join(allGEDI2B_no_geom, by = "shot_number") %>%
+  left_join(allGEDI4A_no_geom, by = "shot_number")
+
+# Remove rows with any NA values
+cleaned_data <- drop_na(merged_data)
+
+# Merge the geometries back from `allGEDI2A`
+final_data <- allGEDI2A %>%
+  filter(shot_number %in% final_data_no_geom$shot_number) %>%
+  left_join(final_data_no_geom, by = "shot_number")
+
+# Select unique columns to avoid duplication
+final_data_no_geom <- final_data_no_geom %>%
+  select(-starts_with("rh"), everything())
+
+
+
 
 
 
@@ -219,7 +299,7 @@ result_df <- as.data.frame(result_df) %>%
 
 library(waveformlidar)
 
-waveform lidar bits here
+#waveform lidar bits here
 
 
 
@@ -319,6 +399,12 @@ mapview(secondaryforest2023, layer.name = 'Secondary forest age', na.color="tran
 
 
 # BURNED AREA DATA
+
+
+# ADD IN HERE ABOUT DOWNLOADING THE MODIS LAYER - PUT THIS INTO GEE
+git clone https://earthengine.googlesource.com/users/mapbiomas/user-toolkit
+
+
 
 MAPBIOMAS_folder <- "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Input_data/Fire_data"
 output_folder <- "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/Fire_data"
@@ -472,18 +558,18 @@ rm(allGEDI2A, allGEDI2A_aged, allGEDI2A_intact, allGEDI2A_intact_sample, allGEDI
 # Reaload/filter and set CRS of final ALS catalogs if no longer in environment
 
 # DAAC18_19Sfinal <- readLAScatalog('/Users/emilydoyle/Library/CloudStorage/OneDrive-UniversityofExeter/LIDAR/DAAC18_19S/final_norm')
-# DAAC18CAUT23_20Sfinal <- readLAScatalog('/Users/emilydoyle/Library/CloudStorage/OneDrive-UniversityofExeter/LIDAR/DAAC18CAUT23_20S/final_norm')
-# DAAC18_21Sfinal <- readLAScatalog('/Users/emilydoyle/Library/CloudStorage/OneDrive-UniversityofExeter/LIDAR/DAAC18_21S/final_norm')
+# CAUT23_20Sfinal <- readLAScatalog('/Users/emilydoyle/Library/CloudStorage/OneDrive-UniversityofExeter/LIDAR/CAUT23_20S/final_norm')
+# DAAC1821_21Sfinal <- readLAScatalog('/Users/emilydoyle/Library/CloudStorage/OneDrive-UniversityofExeter/LIDAR/DAAC1821_21S/final_norm')
 # DAAC18_22Sfinal <- readLAScatalog('/Users/emilydoyle/Library/CloudStorage/OneDrive-UniversityofExeter/LIDAR/DAAC18_22S/final_norm')
 # 
 # DAAC18_19Sfinal <- filter_als(DAAC18_19Sfinal)
-# DAAC18CAUT23_20Sfinal <- filter_als(DAAC18CAUT23_20Sfinal)
-# DAAC18_21Sfinal <- filter_als(DAAC18_21Sfinal)
+# CAUT23_20Sfinal <- filter_als(CAUT23_20Sfinal)
+# DAAC1821_21Sfinal <- filter_als(DAAC1821_21Sfinal)
 # DAAC18_22Sfinal <- filter_als(DAAC18_22Sfinal)
 # 
 # st_crs(DAAC18_19Sfinal) <- 32719
-# st_crs(DAAC18CAUT23_20Sfinal) <- 32720
-# st_crs(DAAC18_21Sfinal) <- 32721
+# st_crs(CAUT23_20Sfinal) <- 32720
+# st_crs(DAAC1821_21Sfinal) <- 32721
 # st_crs(DAAC18_22Sfinal) <- 32722
 
 
@@ -499,35 +585,35 @@ st_crs(allGEDI2A_19S) #, allGEDI2A_20S, allGEDI2A_21S, allGEDI2A_22S)
  # Extracting metrics of ALS within GEDI footprints in the same CRS
 
 DAAC18_19Smetrics <- plot_metrics(DAAC18_19Sfinal, ~lidar_preds(Z, ReturnNumber, min = 0, max = Inf), allGEDI2A_19S, radius = 12.5)
-DAAC18CAUT23_20Smetrics <- plot_metrics(DAAC18CAUT23_20Sfinal, ~lidar_preds(Z, ReturnNumber, min = 0, max = Inf), allGEDI2A_20S, radius = 12.5)
-DAAC18_21Smetrics <- plot_metrics(DAAC18_21Sfinal, ~lidar_preds(Z, ReturnNumber, min = 0, max = Inf), allGEDI2A_21S, radius = 12.5)
+CAUT23_20Smetrics <- plot_metrics(CAUT23_20Sfinal, ~lidar_preds(Z, ReturnNumber, min = 0, max = Inf), allGEDI2A_20S, radius = 12.5)
+DAAC1821_21Smetrics <- plot_metrics(DAAC1821_21Sfinal, ~lidar_preds(Z, ReturnNumber, min = 0, max = Inf), allGEDI2A_21S, radius = 12.5)
 DAAC18_22Smetrics <- plot_metrics(DAAC18_22Sfinal, ~lidar_preds(Z, ReturnNumber, min = 0, max = Inf), allGEDI2A_22S, radius = 12.5)
 
 
 # Merging metrics and using control CRS (WGS84) associated with GEDI data now extraction is complete
 
 DAAC18_19Smetrics <- st_transform(allGEDI2A19S_metrics, "EPSG:32643")
-DAAC18CAUT23_20Smetrics <- st_transform(allGEDI2A20S_metrics, "EPSG:32643")
-DAAC18_21Smetrics <- st_transform(allGEDI2A21S_metrics, "EPSG:32643")
+CAUT23_20Smetrics <- st_transform(allGEDI2A20S_metrics, "EPSG:32643")
+DAAC1821_21Smetrics <- st_transform(allGEDI2A21S_metrics, "EPSG:32643")
 DAAC18_22Smetrics <- st_transform(allGEDI2ACAUT20S_metrics, "EPSG:32643")
 
 st_crs(allGEDI2A19S_metrics)
 
 # Remove duplicated rows
 DAAC18_19Smetrics <- distinct(DAAC18_19Smetrics)
-DAAC18CAUT23_20Smetrics <- distinct(DAAC18CAUT23_20Smetrics)
-DAAC18_21Smetrics <- distinct(DAAC18_21Smetrics)
+CAUT23_20Smetrics <- distinct(CAUT23_20Smetrics)
+DAAC1821_21Smetrics <- distinct(DAAC1821_21Smetrics)
 DAAC18_22Smetrics <- distinct(DAAC18_22Smetrics)
 
 # Assuming columns are in the same order and just have different names
-colnames(DAAC18CAUT23_20Smetrics) <- colnames(DAAC18_19Smetrics)
-colnames(DAAC18_21Smetrics) <- colnames(DAAC18_19Smetrics)
+colnames(CAUT23_20Smetrics) <- colnames(DAAC18_19Smetrics)
+colnames(DAAC1821_21Smetrics) <- colnames(DAAC18_19Smetrics)
 colnames(DAAC18_22Smetrics) <- colnames(DAAC18_19Smetrics)
 
 # Combine the dataframes into one dataframe using bind_rows
 merged_df <- bind_rows(DAAC18_19Smetrics, 
-                       DAAC18CAUT23_20Smetrics,
-                       DAAC18_21Smetrics,
+                       CAUT23_20Smetrics,
+                       DAAC1821_21Smetrics,
                        DAAC18_22Smetrics)
 
 
@@ -544,8 +630,8 @@ allheight <- read_sf("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GED
 
 
 rm(allGEDI2A_19S, allGEDI2A_20S, allGEDI2A_21S, allGEDI2A_22S, DAAC18_19Sfinal, 
-   DAAC18_20Sfinal, DAAC18_21Sfinal, DAAC18_22Sfinal, DAAC18_19Smetrics, DAAC18_20Smetrics,
-   DAAC18_21Smetrics, DAAC18_22Smetrics)
+   DAAC18_20Sfinal, DAAC1821_21Sfinal, DAAC18_22Sfinal, DAAC18_19Smetrics, DAAC18_20Smetrics,
+   DAAC1821_21Smetrics, DAAC18_22Smetrics)
 
 # ------ Statistics CHECK ---------
 

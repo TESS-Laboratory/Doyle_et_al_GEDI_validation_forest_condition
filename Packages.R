@@ -32,6 +32,7 @@ library(gtsummary)
 library(mapview)
 library(ggplot2)
 library(plotly)
+install.packages('leafgl')
 
 # Communications
 library(cli)
@@ -41,3 +42,5 @@ library(cli)
 library(targets)
 
 
+# NOT SURE WHERE THIS ONE GOES
+library(lmomco)

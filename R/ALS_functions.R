@@ -1,5 +1,5 @@
 
-# ALS FUNCTIONS
+# ALS PREPROCESSING FUNCTIONS
 
 # Function to set new directory, retiling preferences, and to retile LAScatalog
 retile_catalog_pref <- function(catalog) {
@@ -109,8 +109,6 @@ process_alstest <- function(las_catalog) {
 }
 
 
-
-
 # Select classifications of ALS data and filter catalog for anomalous points
 filter_als <- function(LAScatalog){
   # Filter for classification
@@ -119,7 +117,6 @@ filter_als <- function(LAScatalog){
   opt_filter(LAScatalog) <- "-drop_z_above 70"
   return(LAScatalog)
 }
-
 
 
 
@@ -300,7 +297,6 @@ gedi4A_batch_download <- function(poly_folder_path, start_date, end_date, fgb_ou
 }
 
 
-
 #NEEDS WORK
 gedi1B_batch_download <- function(poly_folder_path, start_date, end_date, fgb_output_folder) {
   
@@ -363,6 +359,288 @@ wvf_ggplot <- function(x, wf, z, .ylab = "Elevation (m)") {
     coord_flip() +
     labs(x = .ylab, y = "Waveform Amplitude")
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Filter andn reproject GEDI dataset to match ALS CRS
+filter_reproj_GEDI <- function(data, als_crs_value, epsg_code) {
+  # Filter the data based on ALS_CRS value
+  filtered_data <- data %>%
+    filter(ALS_CRS == als_crs_value)
+  
+  # Transform the coordinate reference system
+  transformed_data <- st_transform(filtered_data, epsg_code)
+  
+  # Return the transformed data
+  return(transformed_data)
+}
+
+
+
+
+
+
+# EXTRACTING METRCIS FROM ALS FUNCTIONS USING LidR
+
+
+density_preds <- function(Z, percentiles = seq(0.1, 0.9, 0.1)) {
+  z_range <- range(Z)
+  z_range_diff <- z_range[[2]] - z_range[[1]]
+  
+  lapply(
+    z_range_diff * percentiles,
+    \(h) mean(Z > (h + z_range[[1]]))
+  ) |>
+    stats::setNames(paste0("d", (percentiles * 100))) |>
+    list2DF()
+}
+
+height_preds <- function(Z, percentiles = c(seq(0.1, 0.9, 0.1), 0.25, 0.75, 0.95, 0.96, 0.97, 0.98, 0.99)) {
+  stats::quantile(Z, percentiles) |>
+    t() |>
+    stats::setNames(paste0("rhz", (percentiles * 100))) |>
+    as.data.frame()
+}
+
+
+l_moment_preds <- function(Z) {
+  if (length(unique(Z)) == 1) {
+    out <- data.frame(
+      L2 = 0,
+      L3 = 0,
+      L4 = 0,
+      L_cv = 0,
+      L_skew = 0,
+      L_kurt = 0
+    )
+  } else {
+    l_moments <- lmomco::lmom.ub(Z)
+    out <- data.frame(
+      L2 = l_moments$L2,
+      L3 = l_moments$L3,
+      L4 = l_moments$L4,
+      L_cv = l_moments$LCV,
+      L_skew = l_moments$TAU3,
+      L_kurt = l_moments$TAU4
+    )
+  }
+  out
+}
+
+#' Standard LiDAR metrics
+#'
+#' This function computes a set of metrics from LiDAR point clouds. For metric
+#' definitions and references, see Table 1 of Mahoney et al (2022).
+#'
+#' @param Z Return height for each point
+#' @param ReturnNumber Return number of each point
+#' @param min,max The minimum and maximum valid Z value. Returns outside of
+#' this range will be discarded before metric computation.
+#'
+#' @references
+#' Michael J Mahoney, Lucas K Johnson, Eddie Bevilacqua & Colin M Beier
+#' (2022) Filtering ground noise from LiDAR returns produces inferior models of
+#' forest aboveground biomass in heterogenous landscapes, GIScience & Remote
+#' Sensing, 59:1, 1266-1280, DOI: 10.1080/15481603.2022.2103069
+#'
+#' @return A `data.frame` with 40 columns, containing various LiDAR metrics.
+#'
+#' @examples
+#' lidar_preds(rnorm(1000, 3), sample(1:3, 1000, TRUE, c(0.7, 0.2, 0.1)))
+#'
+#' @export
+lidar_preds <- function(Z, ReturnNumber, min = 0, max = Inf) {
+  density_pred_template <- lapply(
+    paste0("d", seq(0.1, 0.9, 0.1) * 100),
+    \(x) stats::setNames(data.frame(NA_real_), x)
+  ) |>
+    do.call(what = cbind)
+  
+  height_pred_template <- lapply(
+    paste0("rhz", c(seq(0.1, 0.9, 0.1), 0.25, 0.75, 0.95, 0.96, 0.97, 0.98, 0.99) * 100),
+    \(x) stats::setNames(data.frame(NA_real_), x)
+  ) |>
+    do.call(what = cbind)
+  
+  out <- cbind(
+    n = NA_integer_,
+    zmean = NA_real_,
+    max = NA_real_,
+    min = NA_real_,
+    quad_mean = NA_real_,
+    cv = NA_real_,
+    z_kurt = NA_real_,
+    z_skew = NA_real_,
+    L2 = NA_real_,
+    L3 = NA_real_,
+    L4 = NA_real_,
+    L_cv = NA_real_,
+    L_skew = NA_real_,
+    L_kurt = NA_real_,
+    height_pred_template,
+    density_pred_template,
+    cancov = NA_real_,
+    quad_mean_c = NA_real_,
+    zmean_c = NA_real_,
+    cv_c = NA_real_,
+    hvol = NA_real_,
+    rpc1 = NA_real_
+  )
+  
+  include <- Z >= min & Z <= max
+  
+  if (sum(include) < 10) {
+    return(out)
+  }
+  
+  Z <- Z[include]
+  ReturnNumber <- ReturnNumber[include]
+  
+  out[["n"]] <- length(Z)
+  out[["zmean"]] <- mean(Z)
+  out[["max"]] <- max(Z)
+  out[["min"]] <- min(Z)
+  out[["quad_mean"]] <- sqrt(mean(Z^2))
+  out[["cv"]] <- stats::sd(Z) / mean(Z)
+  out[["z_kurt"]] <- e1071::kurtosis(Z, type = 2)
+  out[["z_skew"]] <- e1071::skewness(Z, type = 2)
+  l_moments <- l_moment_preds(Z)
+  out[names(l_moments)] <- l_moments
+  out[names(height_pred_template)] <- height_preds(Z)
+  out[names(density_pred_template)] <- density_preds(Z)
+  out[["cancov"]] <- mean(Z > 2)
+  
+  if (sum(Z > 2.5) > 1) {
+    out[["quad_mean_c"]] <- sqrt(mean((Z[Z > 2.5])^2))
+    out[["zmean_c"]] <- mean(Z[Z > 2.5])
+    out[["cv_c"]] <- stats::sd(Z[Z > 2.5]) / out$zmean_c
+  } else {
+    out[["quad_mean_c"]] <- 0
+    out[["zmean_c"]] <- 0
+    out[["cv_c"]] <- 0
+  }
+  
+  out$hvol <- out$cancov * out$zmean
+  out$rpc1 <- mean(ReturnNumber == 1)
+  out
+}
+
+
+
+
+
+
+
+
+
+#' Relative height metrics function
+#' For use with lidR::plot_metrics or lidR::pixel_metrics functions. Assumes
+#' the point cloud has been normalised to ground level.
+#' @param Z Return height for each point
+#' @param min,max The minimum and maximum valid Z value. Returns outside of
+#' this range will be discarded before metric computation.
+#' @return A `data.frame` with 100 columns, containing relative height metrics
+#' at 1 percentile intervals.
+#' @export
+rh_preds <- function(Z, min = 0, max = Inf) {
+  out <- lapply(
+    paste0("rh", seq(0.01, 1, 0.01) * 100),
+    \(x) stats::setNames(data.frame(NA_real_), x)
+  ) |>
+    do.call(what = cbind)
+  include <- Z >= min & Z <= max
+  
+  if (sum(include) < 10) {
+    return(out)
+  }
+  
+  Z <- Z[include]
+  Z <- Z[include]
+  out[names(out)] <- height_preds(Z, percentiles = seq(0.01, 1, 0.01))
+  return(out)
+}
+
+
+#' @rdname compute_pixel_metrics
+#' @export
+compute_plot_metrics <- function(
+    las,
+    func = lidar_preds(Z, ReturnNumber),
+    geometry,
+    ...,
+    radius) {
+  lidR::plot_metrics(las, func, geometry = geometry, ..., radius = radius)
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Custom function to calculate canopy cover for circular plots within a polygonal footprint
+calculate_canopy_cover <- function(las, footprint, cutoff) {
+  # Create circular plots within the polygonal footprint
+  plots <- plot_metrics(las, ~list(buffer_points(., radius = 12.5)), footprint)
+  
+  # Classify points based on first returns above cutoff
+  las$vegetation <- las$Z > cutoff
+  
+  # Compute canopy cover for each circular plot
+  canopy_cover <- plot_metrics(las, ~sum(vegetation) / point_density() * 100, plots)
+  
+  return(canopy_cover)
+}
+
+# Example usage:
+# Assuming fin_catalog is your LAScatalog and footprints is a LAS object
+cutoff <- 2  # adjust the cutoff value as needed
+als_canopy_cover <- calculate_canopy_cover(fin_catalog, footprints, cutoff)
+
+
+
+
+
+
+
+
+
+
+
 
 
 
