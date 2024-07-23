@@ -19,7 +19,7 @@ options(mapviewMaxPixels = 1000000000)
 
 
 
-# ----- PRE-PROCESS ALS done -------- 
+# ----- Pre-Process ALS done -------- 
 # ALS data is sourced from Sustainable Landscapes Brazil project (2018), downloaded into coordinate reference system (CRS)
 # regions with the format 'DAAC_year_CRS'. Data is also sourced from Permian Global in 2023 for Rio Cautario. 
 # ALS data is combined but catalogs are separated by their CRS.
@@ -44,10 +44,8 @@ DAAC18_19S_norm <- process_als(retile_DAAC18_19S)
 CAUT23_20S_norm <- process_als(retile_CAUT23_20S)
 DAAC1821_21S_norm <- process_als(retile_DAAC1821_21S)
 
-
 las_check(DAAC1821_19S_norm)
 
-# SOME OF THIS NEEDS TO GO DOWN TO ALS/GEDI EXTRACTION
 # Filter the data for anomalous results
 
 DAAC18_19Sfinal <- filter_als(DAAC18_19S_norm)
@@ -71,59 +69,36 @@ writeRaster(dtm_CAUT23_20S, "/Users/emilydoyle/Library/CloudStorage/OneDrive-Uni
 writeRaster(dtm_DAAC1821_21S, "/Users/emilydoyle/Library/CloudStorage/OneDrive-UniversityofExeter/DAAC_lidar/dtm_DAAC1821_21S.tif", overwrite=TRUE)
 
 # Polygon files for the ALS extents can now be created in QGIS to use for GEDI download
-# Remove ALS catalogs from the environment for now
+# Tidy the environment
 rm(DAAC18_19S, CAUT23_20S, DAAC1821_21S, retile_DAAC18_19S, retile_CAUT23_20S, 
    retile_DAAC1821_21S, DAAC18_19S_norm, CAUT23_20S_norm, DAAC1821_21S_norm, 
    dtm_DAAC18_19S, dtm_CAUT23_20S, dtm_DAAC1821_21S)
 
 
-# ----------- GEDI download ERRORS NEED FIXING ----------------
+# ----------- GEDI download done ----------------
+
+# GEDI files are downloaded to correspond with ALS data extent e.g. DAAC ALS 2018 = 2019-01-01 to 2019-12-31
+# DAAC 2021 = 2020-06-01 to 2022-06-01 and CAUTARIO 2023 = 2022-01-01 to 2024-06-01 (year gap in 23-24 collection)
+# GEDI polygon file names are in format "DAAC1821S_3.shp", with function extracting ALS and including as column in final file
 
 # Download GEDI2A files for all polygon shapefiles in a folder, creating output geodataframe for each AOI
-# Files are downloaded to correspond with ALS data e.g. DAAC ALS 2018 = 2019-01-01 to 2019-12-31
-# DAAC 2021 = 2020-06-01 to 2022-06-01 and CAUTARIO 2023 = 2022-01-01 to 2024-06-01 (year gap in 23-24 collection)
 
-poly_folder_path <- "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Input_data/DAAC_polygons"
-start_date <- "2019-01-01"
-end_date <- "2019-12-31"
-fgb_output_folder <- "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/GEDI2A"
-
-gedi2A_batch_download(poly_folder_path, start_date, end_date, fgb_output_folder)
-
-poly_folder_path <- "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Input_data/DAAC_2021_polygons"
-start_date <- "2020-06-01"
-end_date <- "2022-06-01"
-fgb_output_folder <- "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/GEDI2A"
-
-gedi2A_batch_download(poly_folder_path, start_date, end_date, fgb_output_folder)
-
-poly_folder_path <- "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Input_data/CAUTARIO_polygons"
-start_date <- "2022-01-01"
-end_date <- "2024-06-01"
-fgb_output_folder <- "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/GEDI2A"
-
-gedi2A_batch_download(poly_folder_path, start_date, end_date, fgb_output_folder)
-
-
-# Define the parameters as lists
+# Parameters for three separate folders of ALS polygon extent regions, 
+# outputting to the same folder with GEDI batch function
 params <- list(
   start_date = c("2019-01-01", "2020-06-01", "2022-01-01"),
   end_date = c("2019-12-31", "2022-06-01", "2024-06-01"),
   poly_folder_path = c("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Input_data/DAAC_polygons",
-            "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Input_data/DAAC_2021_polygons",
-            "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Input_data/CAUTARIO_polygons"),
+                       "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Input_data/DAAC_2021_polygons",
+                       "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Input_data/CAUTARIO_polygons"),
   fgb_output_folder = c("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/GEDI2A"))
 
-# Use pmap to call gedi_batch_download with the parameters
-pmap(params, gedi_batch_download)
-
-
-
-
-
+# Function for GEDI batch download, using pmap to call the list of parameters
+pmap(params, gedi2A_batch_download)
 
 # Reading all of the 2A output .fgb files into one geodatabase
 
+fgb_output_folder = "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/GEDI2A"
 fgb_files <- list.files(path = fgb_output_folder, pattern = "\\.fgb$", full.names = TRUE)
 fgb_list <- lapply(fgb_files, st_read)
 allGEDI2A <- do.call(rbind, fgb_list)
@@ -132,36 +107,30 @@ allGEDI2A <- distinct(allGEDI2A, shot_number, .keep_all = TRUE)
 sf::st_write(allGEDI2A, "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI2A.fgb", delete_dsn = TRUE, overwrite = TRUE)
 
 #allGEDI2A <- read_sf("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI2A.fgb")
-mapview(allGEDI2A) + mapview(secondaryforest2023)
+mapview(allGEDI2A)
 
 
 
 
 # Download GEDI2B files for all polygon shapefiles in a folder,creating output geodataframe for each AOI
 
-poly_folder_path <- "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Input_data/DAAC_polygons"
-start_date <- "2019-01-01"
-end_date <- "2019-12-31"
-fgb_output_folder <- "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/GEDI2B"
+# Parameters for three separate folders of ALS polygon extent regions, 
+# outputting to the same folder with GEDI batch function
+params <- list(
+  start_date = c("2019-01-01", "2020-06-01", "2022-01-01"),
+  end_date = c("2019-12-31", "2022-06-01", "2024-06-01"),
+  poly_folder_path = c("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Input_data/DAAC_polygons",
+                       "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Input_data/DAAC_2021_polygons",
+                       "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Input_data/CAUTARIO_polygons"),
+  fgb_output_folder = c("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/GEDI2B"))
 
-gedi2B_batch_download(poly_folder_path, start_date, end_date, fgb_output_folder)
+# Function for GEDI batch download, using pmap to call the list of parameters
+pmap(params, gedi2B_batch_download)
 
-poly_folder_path <- "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Input_data/DAAC_2021_polygons"
-start_date <- "2020-06-01"
-end_date <- "2022-06-01"
-fgb_output_folder <- "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/GEDI2B"
-
-gedi2B_batch_download(poly_folder_path, start_date, end_date, fgb_output_folder)
-
-poly_folder_path <- "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Input_data/CAUTARIO_polygons"
-start_date <- "2022-01-01"
-end_date <- "2024-06-01"
-fgb_output_folder <- "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/GEDI2B"
-
-gedi2B_batch_download(poly_folder_path, start_date, end_date, fgb_output_folder)
 
 # Reading all of the 2B output .fgb files into one geodatabase
 
+fgb_output_folder = "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/GEDI2B"
 fgb_files <- list.files(path = fgb_output_folder, pattern = "\\.fgb$", full.names = TRUE)
 fgb_list <- lapply(fgb_files, st_read)
 allGEDI2B <- do.call(rbind, fgb_list)
@@ -177,29 +146,22 @@ mapview(allGEDI2B)
 
 # Download GEDI4A files for all polygon shapefiles in a folder,creating output geodataframe for each AOI
 
-poly_folder_path <- "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Input_data/DAAC_polygons"
-start_date <- "2019-01-01"
-end_date <- "2019-12-31"
-fgb_output_folder <- "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/GEDI4A"
+# Parameters for three separate folders of ALS polygon extent regions, 
+# outputting to the same folder with GEDI batch function
+params <- list(
+  start_date = c("2019-01-01", "2020-06-01", "2022-01-01"),
+  end_date = c("2019-12-31", "2022-06-01", "2024-06-01"),
+  poly_folder_path = c("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Input_data/DAAC_polygons",
+                       "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Input_data/DAAC_2021_polygons",
+                       "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Input_data/CAUTARIO_polygons"),
+  fgb_output_folder = c("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/GEDI4A"))
 
-gedi4A_batch_download(poly_folder_path, start_date, end_date, fgb_output_folder)
-
-poly_folder_path <- "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Input_data/DAAC_2021_polygons"
-start_date <- "2020-06-01"
-end_date <- "2022-06-01"
-fgb_output_folder <- "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/GEDI4A"
-
-gedi4A_batch_download(poly_folder_path, start_date, end_date, fgb_output_folder)
-
-poly_folder_path <- "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Input_data/CAUTARIO_polygons"
-start_date <- "2022-01-01"
-end_date <- "2024-06-01"
-fgb_output_folder <- "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/GEDI4A"
-
-gedi4A_batch_download(poly_folder_path, start_date, end_date, fgb_output_folder)
+# Function for GEDI batch download, using pmap to call the list of parameters
+pmap(params, gedi4A_batch_download)
 
 # Reading all of the 4A output .fgb files into one geodatabase
 
+fgb_output_folder = "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/GEDI4A"
 fgb_files <- list.files(path = fgb_output_folder, pattern = "\\.fgb$", full.names = TRUE)
 fgb_list <- lapply(fgb_files, st_read)
 allGEDI4A <- do.call(rbind, fgb_list)
@@ -211,85 +173,90 @@ sf::st_write(allGEDI4A, "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_
 mapview(allGEDI4A)
 
 
-#1B GEDI download
 
-#poly_folder_path <- "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Input_data/DAAC_polygons"
-#start_date <- "2019-01-01"
-#end_date <- "2019-12-31"
-#fgb_output_folder <- "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/GEDI1B"
-#gedi1B <- gedi1B_batch_download(poly_folder_path, start_date, end_date, fgb_output_folder)
+# Merge the 2A, 2B and 4A files into comprehensive dataframes
 
-
-
-# Merge the 2A, 2B and 4A files by shot_number
-
-#This will produce in an incomplete file but workflow complete (not all 2B/4A files worked) ASK HUGH FOR HELP ON THIS
-
-#THIS NEEDS WORK? GOES FROM 6702 to 3515
-allGEDI <- st_join(allGEDI2A, allGEDI2B) %>%
-  filter(!is.na(shot_number.y)) %>%
-  st_join(allGEDI4A)%>%
-  filter(!is.na(shot_number)) 
-
-
-allGEDI2Anosf <- st_drop_geometry(allGEDI2A)
-allGEDI2Bnosf <- st_drop_geometry(allGEDI2B)
-allGEDI4Anosf <- st_drop_geometry(allGEDI4A)
-
-GEDI2A2B <- merge(allGEDI2Anosf, allGEDI2Bnosf, by = "shot_number")
-
-allGEDInosf <- merge(GEDI2A2B, allGEDI4Anosf, by = "shot_number")
-
-allGEDIdata <- st_sf(allGEDInosf, geometry = geometry_sf)
-
-# NOW HAS NO GEOMETRY, NEED TO FIX
-
-# Ensure the CRS (Coordinate Reference System) is the same for all datasets
+# Check the CRS is the same for all three GEDI datasets
 allGEDI2B <- st_transform(allGEDI2B, st_crs(allGEDI2A))
 allGEDI4A <- st_transform(allGEDI4A, st_crs(allGEDI2A))
 
-# Remove geometries
+# Remove geometries to join data by shot_number
 allGEDI2A_no_geom <- st_set_geometry(allGEDI2A, NULL)
 allGEDI2B_no_geom <- st_set_geometry(allGEDI2B, NULL)
 allGEDI4A_no_geom <- st_set_geometry(allGEDI4A, NULL)
 
-# Merge datasets based on shot_number
-merged_data <- allGEDI2A_no_geom %>%
-  left_join(allGEDI2B_no_geom, by = "shot_number") %>%
+# Merge datasets based on shot_number to create two datasets: 2A/2B and additional 4A
+merged2AB <- allGEDI2A_no_geom %>%
+  left_join(allGEDI2B_no_geom, by = "shot_number") 
+
+merged2AB4A <- merged2AB %>%
   left_join(allGEDI4A_no_geom, by = "shot_number")
 
-# Remove rows with any NA values
-cleaned_data <- drop_na(merged_data)
+
+
+# Clean data before remerging
+# Remove rows with any NA values 
+cleaned2AB <- drop_na(merged2AB)
+cleaned2AB4A <- drop_na(merged2AB4A)
+
+# Keep only the columns from allGEDI2B and the non-duplicated columns from the other datasets
+columns_to_keep <- setdiff(names(cleaned2AB), names(allGEDI2A_no_geom))
+columns_to_keep <- columns_to_keep[!grepl("\\.y$", columns_to_keep)]
+columns_to_keep <- columns_to_keep[!grepl("\\.x$", columns_to_keep)]
+
+cleaned2AB <- cleaned2AB %>%
+  select(shot_number, all_of(columns_to_keep), ends_with(".x")) %>%
+  rename_with(~ gsub("\\.x$", "", .), ends_with(".x"))
+
+# Keep only the columns from allGEDI4A and the non-duplicated columns from the other datasets
+columns_to_keep <- setdiff(names(cleaned2AB4A), names(allGEDI2A_no_geom))
+columns_to_keep <- columns_to_keep[!grepl("\\.y$", columns_to_keep)]
+columns_to_keep <- columns_to_keep[!grepl("\\.x$", columns_to_keep)]
+
+cleaned2AB4A <- cleaned2AB4A %>%
+  select(shot_number, all_of(columns_to_keep), ends_with(".x")) %>%
+  rename_with(~ gsub("\\.x$", "", .), ends_with(".x")) %>%
+  select(shot_number, all_of(columns_to_keep), ends_with(".x"))
+
 
 # Merge the geometries back from `allGEDI2A`
-final_data <- allGEDI2A %>%
-  filter(shot_number %in% final_data_no_geom$shot_number) %>%
-  left_join(final_data_no_geom, by = "shot_number")
+allGEDI2AB <- allGEDI2A %>%
+  filter(shot_number %in% cleaned2AB$shot_number) %>%
+  left_join(cleaned2AB, by = "shot_number") %>%
+  select(-ends_with(".y")) %>%
+  rename_with(~ gsub("\\.x$", "", .), ends_with(".x"))
+  
+allGEDI <- allGEDI2AB %>%
+  filter(shot_number %in% cleaned2AB4A$shot_number) %>%
+  left_join(cleaned2AB4A, by = "shot_number") %>%
+  select(-year, -degrade_flag) %>%
+  select(-ends_with(".x")) %>%
+  rename_with(~ gsub("\\.y$", "", .), ends_with(".y"))
 
-# Select unique columns to avoid duplication
-final_data_no_geom <- final_data_no_geom %>%
-  select(-starts_with("rh"), everything())
+sf::st_write(allGEDI2AB, "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI2AB.fgb", delete_dsn = TRUE, overwrite = TRUE)
+sf::st_write(allGEDI, "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI.fgb", delete_dsn = TRUE, overwrite = TRUE)
+
+#allGEDI2AB <- read_sf("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI2AB.fgb")
+#allGEDI <- read_sf("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI.fgb")
+
+# Tidy the environment
+rm(allGEDI2A, allGEDI2B, allGEDI4A, allGEDI2A_no_geom, allGEDI2B_no_geom, 
+   allGEDI4A_no_geom, cleaned2AB, cleaned2AB4A, merged2AB, merged2AB4A, fgb_list, params)
 
 
 
-
-
-
-
-# ------ GEDI regressions SHOULD ADD KURTOSIS SKEW ETC ---------
+# ------ GEDI regressions NEED WAVEFORMLIDAR ADD KURTOSIS SKEW ETC ---------
 
 # Summarise relative height rh0-100 metrics with linear regression model 
 # Outputs intercept, slope and variance of the 2A waveform
 # USE THE WAVEFORMLIDAR VIGNETTE TO EXTRACT MORE VARIABLES
 
-# USE ALLGEDI EVENTUALLY
-
-GEDI2A_trans <- allGEDI2A %>%
+GEDI2AB_trans <- allGEDI2AB %>%
   as.data.frame() %>%
   select(shot_number, starts_with("rh"))
 
 # Apply regression function to each row of the dataframe
-result_df <- apply(GEDI2A_trans, 1, rh_linear_regression)
+result_df <- apply(GEDI2AB_trans, 1, rh_linear_regression)
 
 # Convert the result to a dataframe and set column names
 result_df <- t(data.frame(result_df))
@@ -306,24 +273,123 @@ library(waveformlidar)
 
 
 
-# Remerge with original GEDI2A dataframe and filter for specific relative height entries
+# Remerge with original GEDI2A dataframe
 
-allGEDI2A <- left_join(allGEDI2A, result_df, by = "shot_number")
+allGEDI2AB_reg <- left_join(allGEDI2AB, result_df, by = "shot_number", copy = TRUE)
 
-allGEDI2A_reg <- allGEDI2A %>%
-  select(year, solar_elevation, lat_lowestmode, lon_lowestmode, elev_highestreturn, elev_lowestmode,
+sf::st_write(allGEDI2AB_reg, "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI2AB_regressions.fgb", delete_dsn = TRUE, overwrite = TRUE)
+# allGEDI2AB_reg <- read_sf("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI2AB_regressions.fgb")
+
+
+# Repeat for GEDI4A dataframe
+{
+
+# Load in 4A files to make comprehensive GEDI data frame also (sample size reduced however)
+allGEDI4A <- read_sf("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI4A.fgb")
+
+# Remove geometry to join data by shot_number
+allGEDI4A_no_geom <- st_set_geometry(allGEDI4A, NULL)
+
+# Merge datasets based on shot_number to have GEDI4A carbon metrics also
+allGEDI2AB4A_reg <- allGEDI2AB_reg %>%
+  left_join(allGEDI4A_no_geom, by = "shot_number")
+
+allGEDI2AB4A_reg <- allGEDI2AB4A_reg %>% 
+  drop_na(agbd)
+
+sf::st_write(allGEDI2AB4A_reg, "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI2AB4A_reg.fgb", delete_dsn = TRUE, overwrite = TRUE)
+#allGEDI2AB4A_reg <- read_sf("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI2AB4A_reg.fgb")
+
+}
+
+# Tidy the environment
+rm(GEDI2AB_trans, result_df, allGEDI4A_no_geom)
+
+# ------ Extracting ALS metrics within GEDI footprints ------
+
+# As the ALS data spans different parts of the Amazon rainforest, they are separated in folders by their
+# CRS. Each ALS folder must therefore extract data from the GEDI footprints separately before being merged.
+
+# Reload/filter and set CRS of final ALS catalogs if no longer in environment
+
+DAAC18_19Sfinal <- readLAScatalog('/Users/emilydoyle/Library/CloudStorage/OneDrive-UniversityofExeter/LIDAR/DAAC18_19S/final_norm')
+CAUT23_20Sfinal <- readLAScatalog('/Users/emilydoyle/Library/CloudStorage/OneDrive-UniversityofExeter/LIDAR/CAUT23_20S/final_norm')
+DAAC1821_21Sfinal <- readLAScatalog('/Users/emilydoyle/Library/CloudStorage/OneDrive-UniversityofExeter/LIDAR/DAAC1821_21S/final_norm')
+
+DAAC18_19Sfinal <- filter_als(DAAC18_19Sfinal)
+CAUT23_20Sfinal <- filter_als(CAUT23_20Sfinal1)
+DAAC1821_21Sfinal <- filter_als(DAAC1821_21Sfinal)
+
+st_crs(DAAC18_19Sfinal) <- 32719
+st_crs(CAUT23_20Sfinal) <- 32720
+st_crs(DAAC1821_21Sfinal) <- 32721
+
+
+
+
+# Filter and reproject the GEDI dataframe to match each CRS catalog
+
+allGEDI2AB_reg_19S <- filter_reproj_GEDI(allGEDI2AB_reg, '19S', 'EPSG:32719')
+allGEDI2AB_reg_20S <- filter_reproj_GEDI(allGEDI2AB_reg, '20S', 'EPSG:32720')
+allGEDI2AB_reg_21S <- filter_reproj_GEDI(allGEDI2AB_reg, '21S', 'EPSG:32721')
+
+st_crs(allGEDI2AB_reg_19S) #, allGEDI2AB_reg_20S, allGEDI2AB_reg_21S)
+
+
+# Extracting metrics of ALS within GEDI footprints in the same CRS
+
+DAAC18_19Smetrics <- plot_metrics(DAAC18_19Sfinal, ~lidar_preds(Z, ReturnNumber, min = 0, max = Inf), allGEDI2AB_reg_19S, radius = 12.5)
+CAUT23_20Smetrics <- plot_metrics(CAUT23_20Sfinal, ~lidar_preds(Z, ReturnNumber, min = 0, max = Inf), allGEDI2AB_reg_20S, radius = 12.5)
+DAAC1821_21Smetrics <- plot_metrics(DAAC1821_21Sfinal, ~lidar_preds(Z, ReturnNumber, min = 0, max = Inf), allGEDI2AB_reg_21S, radius = 12.5)
+
+# Merging metrics and using control CRS (WGS84) associated with GEDI data now extraction is complete
+
+DAAC18_19Smetrics <- st_transform(DAAC18_19Smetrics , "EPSG:32643")
+CAUT23_20Smetrics1 <- st_transform(CAUT23_20Smetrics1, "EPSG:32643")
+CAUT23_20Smetrics2 <- st_transform(CAUT23_20Smetrics2, "EPSG:32643")
+DAAC21_21Smetrics <- st_transform(DAAC21_21Smetrics, "EPSG:32643")
+
+st_crs(DAAC18_19Smetrics)
+
+
+
+# Remove duplicated rows
+DAAC18_19Smetrics <- distinct(DAAC18_19Smetrics)
+CAUT23_20Smetrics <- distinct(CAUT23_20Smetrics)
+DAAC1821_21Smetrics <- distinct(DAAC121_21Smetrics)
+
+# Assuming columns are in the same order and just have different names
+colnames(CAUT23_20Smetrics) <- colnames(DAAC18_19Smetrics)
+colnames(DAAC1821_21Smetrics) <- colnames(DAAC18_19Smetrics)
+
+# Combine the dataframes into one dataframe using bind_rows
+merged_df <- bind_rows(DAAC18_19Smetrics, 
+                       CAUT23_20Smetrics,
+                       DAAC1821_21Smetrics)
+
+# Remove rows with NAs in the 'rhz' column and filter for required columns
+
+allGEDI2AB_ALS <- merged_df %>%
+  filter(!is.na(rhz95)) %>%
+  select(year, solar_elevation, elev_highestreturn, elev_lowestmode,
          sensitivity, shot_number, degrade_flag, ALS_CRS, rh0, rh10, rh25, rh50, rh75, rh90, rh95, 
-         rh96, rh97, rh98, rh99, rh100,G_intercept, G_slope, G_variance,geometry)
-#cover, pai, fhd_normal, pgap_theta, modis_treecover, agbd, agbd_se, agbd_pi_lower, agbd_pi_upper
-
-sf::st_write(allGEDI2A_reg, "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI2A_regressions.fgb", delete_dsn = TRUE, overwrite = TRUE)
-# allGEDI2A <- read_sf("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI2A_regressions.fgb")
+         rh96, rh97, rh98, rh99, rh100, G_intercept, G_slope, G_variance, cover, pai, fhd_normal,
+         pgap_theta, modis_treecover, geometry, rhz10, rhz25, rhz50, rhz75, rhz90, rhz95, 
+         rhz96, rhz97, rhz98, rhz99, max, cancov, z_kurt, z_skew)
 
 
+sf::st_write(allGEDI2AB_ALS, "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI2AB_ALS.fgb", delete_dsn = TRUE, overwrite = TRUE)
+#allGEDI2AB_ALS <- read_sf("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI2AB_ALS.fgb")
 
-# ------- Forest spectral classification MODIS AND SECONDARY FOREST---------
 
-# DOWNLOAD/MANIPULATION OF SECONDARY FOREST DATASET
+# Tidy the environment
+rm(merged_df, DAAC18_19Smetrics, DAAC21_21Smetrics, CAUT23_20Smetrics, allGEDI2AB_reg_19S, 
+    allGEDI2AB_reg_20S, allGEDI2AB_reg_21S, DAAC18_19Sfinal, DAAC1821_21Sfinal, CAUT23_20Sfinal)
+
+# ------- Forest spectral classification done---------
+
+# (1) Silva et al (2020) secondary forest of Brazil maps
+
 # Set directories and file names
 data_folder <- "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Input_data/Secondary_forest"
 output_folder <- "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/Secondary_forest_classification/"
@@ -343,7 +409,7 @@ download.file('https://zenodo.org/record/3928660/files/secondary_forest_age_v2_2
               paste0(data_folder, "/", zip_file))
 unzip(paste0(data_folder, "/", zip_file), exdir = data_folder)
 
-# Read rasters and polygons
+# Read secondary forest rasters and polygons of the extent of ALS data (created in QGIS)
 secondaryforestraw1 <- raster(paste0(data_folder, "/", raster_file1))
 secondaryforestraw2 <- raster(paste0(data_folder, "/", raster_file2))
 secondaryforestraw3 <- raster(paste0(data_folder, "/", raster_file3))
@@ -367,366 +433,255 @@ secondaryforest <- raster("/Users/emilydoyle/Documents/workspace_data/Doyle_et_a
 # Reclassify raster
 secondaryforest[secondaryforest == 0] <- NA
 
-# Add 5 years to the raster values to age secondary forest layer from 2018 to 2023 
-# (when original layer was previously modeled to)
-# Continued forest extent from 2018 - 2023 will be checked with GEDI MODIS tree cover metrics
-# CHECK THIS PART???? ONLY CAUTARIO IS AN ISSUE AND KNOW THIS SITE?
+# Add 6 years to the raster values to age secondary forest layer from 2018 to 2024 
+# (when original layer was previously modelled to)
 
-secondaryforestplus4 <- secondaryforest + 5
+secondaryforestplus6 <- secondaryforest + 6
 
 # Write raster
-writeRaster(secondaryforestplus4, paste0(output_folder, "/", "secondaryforest2023.tif"), overwrite=TRUE)
-secondaryforest2023 <- raster("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/Secondary_forest_classification/secondaryforest2023.tif")
+writeRaster(secondaryforestplus6, paste0(output_folder, "/", "secondaryforest2024.tif"), overwrite=TRUE)
+#secondaryforest2024 <- raster("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/Secondary_forest_classification/secondaryforest2024.tif")
 
-mapview(secondaryforest2023, layer.name = 'Secondary forest age', na.color="transparent")
+mapview(secondaryforest2024, layer.name = 'Secondary forest age', na.color="transparent")
 
 
 # Define spatial reference
 #https://spatialreference.org/ref/epsg/32720/
-#sr <- "+proj=utm +zone=20 +south +ellps=WGS84 +datum=WGS84 +units=m +no_defs"
+sr <- "+proj=utm +zone=20 +south +ellps=WGS84 +datum=WGS84 +units=m +no_defs"
 
 # Reproject raster
-#secondaryforest1 <- projectRaster(secondaryforestraw1, crs = sr)
-#secondaryforest2 <- projectRaster(secondaryforestraw2, crs = sr)
+#secondaryforest2024 <- projectRaster(secondaryforest2024, crs = sr)
 
 
+# (2) Burn frequency data
 
-# COROBORATE MODIS AND SECONDARY FOREST
-
-
-
-
-
-
-# BURNED AREA DATA
-
-
-# ADD IN HERE ABOUT DOWNLOADING THE MODIS LAYER - PUT THIS INTO GEE
-git clone https://earthengine.googlesource.com/users/mapbiomas/user-toolkit
-
-
+# Mapbiomas fire frequency layer downloaded from Google Earth Engine toolkit below (version 3.0)
+# for states Rondonia, Amazonas, Para and Mato Grosso
+# git clone https://earthengine.googlesource.com/users/mapbiomas/user-toolkit
 
 MAPBIOMAS_folder <- "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Input_data/Fire_data"
 output_folder <- "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/Fire_data"
 
 # List .tif  files and create empty list to store raster objects
-burned_files <- list.files(path = MAPBIOMAS_folder, pattern = "\\.tif$", full.names = TRUE)
-burned_list <- list()
+Burned_files <- list.files(path = MAPBIOMAS_folder, pattern = "\\.tif$", full.names = TRUE)
+Burned_list <- list()
 
 # Read each raster file and store them in the list
-# MAPBIOMAS files for Rio Cautario date til 2022 and DAAC areas date until 2018 (corresponds with ALS flights)
-for (file in burned_files) {
+# MapBiomas files for Rio Cautario (2023) and DAAC areas (2018/2021) - year corresponds with ALS flights
+for (file in Burned_files) {
   raster_obj <- raster(file)
-  burned_list[[length(burned_list) + 1]] <- raster_obj
+  Burned_list[[length(Burned_list) + 1]] <- raster_obj
 }
 
 # Merge rasters
-merged_burned <- do.call(merge, burned_list)
+merged_Burned <- do.call(merge, Burned_list)
+#merged_Burned <- projectRaster(merged_Burned, crs = sr)
 
 # Crop raster
-burnedforest <- crop(merged_burned, secondaryforest)
+Burnedforest <- crop(merged_Burned, secondaryforest2024)
 
-writeRaster(burnedforest, paste0(output_folder, "/", "MAPBIOMASfire.tif"), overwrite=TRUE)
-burnedforest <- raster("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/Fire_data/MAPBIOMASfire.tif")
-
-
+writeRaster(Burnedforest, paste0(output_folder, "/", "MAPBIOMASfire.tif"), overwrite=TRUE)
+Burnedforest <- raster("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/Fire_data/MAPBIOMASfire.tif")
 
 
-# ----------- GEDI classification extraction NEEDS ALLGEDI EDITS --------------
+# (3) Validation layer
 
-# Burned data 1985 - 2019 for DAAC and 1985 - 2022 for Cautario
-# Extract values for forest age, burn frequency #and ALS extent#, binding new column to GEDI data frame
+# Validate if forest extent is still classified as forest after burn events in Cautario:
+# Logging events do not occur in managed Extractive Reserve but fire events
+# between 2019 - 2023 need to be checked using MapBiomas LULC classification data set post 2019
 
-# MAKE THIS A FUNCTION TO PLAY WITH WHATEVER GEDI FILE INPUT 
-# EVENTUALLY USE JUST THE ALLGEDI FILE
+# Importing MapBiomas land classification layer for Rondonia for 2022 (will update to 2023 when possible)
+forestclassmapbio <- raster("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Input_data/Cautario_validation/mapbiomas-amazon-collection-50-rondonia-2022.tif")
 
-forest_age <- raster::extract(secondaryforest2023, allGEDI2A, method='simple')
-allGEDI2A <- cbind(allGEDI2A, forest_age)
+# Reclassifying so forest = 1 and non forest = 0
+rcl = matrix(c(0,0,0,1,6,1,7,33,0), ncol = 3, byrow = TRUE)
+forestclass = reclassify(forestclassmapbio, rcl)
 
-burn_freq <- terra::extract(burnedforest, allGEDI2A, method='simple')
-allGEDI2A <- cbind(allGEDI2A, burn_freq)
-
-#forest_age <- raster::extract(secondaryforest2023, allGEDI, method='simple')
-#allGEDI <- cbind(allGEDI, forest_age)
-
-#burn_freq <- terra::extract(burnedforest, allGEDI, method='simple')
-#allGEDI<- cbind(allGEDI, burn_freq)
+writeRaster(forestclass, "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/Secondary_forest_classification/forestclass.tif", format="GTiff", overwrite=TRUE)
+forestclass <- raster("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/Secondary_forest_classification/forestclass.tif")
 
 
+# Tidy environment
 
-# Segregate the secondary/ intact forest samples of GEDI footprints
+rm(secondaryforestraw1, secondaryforestraw2, secondaryforestraw3, secondary_forest_west,
+   secondary_forest_east, secondaryforest, secondaryforestplus6, Burned_list, forestclassmapbio, raster_obj,
+   merged_Burned, rcl)
 
-# Edit original allGEDI2A file to have a numeric value for ageless intact forest (n/a)
-allGEDI2A_aged <- allGEDI2A %>%
+
+# ----------- GEDI classification extraction done --------------
+
+# Extract values for forest age, burn frequency #and ALS extent#, binding new columns to GEDI data frame
+
+forest_age <- raster::extract(secondaryforest2024, allGEDI2AB_reg, method='simple')
+allGEDI2AB_reg <- cbind(allGEDI2AB_reg, forest_age)
+
+burn_freq <- terra::extract(Burnedforest, allGEDI2AB_reg, method='simple')
+allGEDI2AB_reg <- cbind(allGEDI2AB_reg, burn_freq)
+
+validation <- terra::extract(forestclass, allGEDI2AB_reg, method='simple')
+allGEDI2AB_reg <- cbind(allGEDI2AB_reg, validation)
+
+
+# Segregate the secondary/ Intact forest samples of GEDI footprints
+
+# Edit original allGEDI2AB_reg file to have a numeric value for ageless Intact forest (n/a)
+allGEDI2AB_reg_aged <- allGEDI2AB_reg %>%
   mutate(forest_age = ifelse(is.na(forest_age), 99, forest_age))
 
-# Filter for intact forest only (values of 99)
-allGEDI2A_intact <- filter(allGEDI2A_aged, forest_age>90)
+# Filter for Intact forest only (values of 99)
+allGEDI2AB_reg_Intact <- filter(allGEDI2AB_reg_aged, forest_age>90)
 
 # Just degraded forest samples (classified with age by secondary forest raster)
-allGEDI2A_sec <- filter(allGEDI2A_aged, forest_age<90)
+allGEDI2AB_reg_sec <- filter(allGEDI2AB_reg_aged, forest_age<90)
 
-
-# Edit original allGEDI2A file to have a numeric value for ageless intact forest (n/a)
-#allGEDI_aged <- allGEDI %>%
- # mutate(forest_age = ifelse(is.na(forest_age), 99, forest_age))
-
-# Filter for intact forest only (values of 99)
-#allGEDI_intact <- filter(allGEDI_aged, forest_age>90)
-
-# Just degraded forest samples (classified with age by secondary forest raster)
-#allGEDI_sec <- filter(allGEDI_aged, forest_age<90)
-
-secondaryforestRio <- raster("/Users/emilydoyle/Documents/workspace/Doyle_development_data/Secondary_forest_classification/secondaryforest2023.tif")
-
-mapview(allGEDI2A_sec, zcol = "forest_age") + mapview(secondaryforest2023) + mapview(allGEDI2A_intact)
-
-mapview(secondaryforestRio) + mapview(burnedforest) + mapview(allGEDI2A_gradient, zcol = "Degradation")
-
-# Randomly sample 150 GEDI footprints (20% of sample size) that meet above criteria and create column highlighting them as =1
-allGEDI2A_intact <- allGEDI2A_intact %>%
-  mutate(intact_sample = as.integer(row_number() %in% sample(n(), size = 150)))
-
-# Filter just the intact GEDI footprint samples
-allGEDI2A_intact_sample <- allGEDI2A_intact %>%
-  filter(intact_sample==1) %>%
-  dplyr::select(-intact_sample) 
-
-mapview(allGEDI_intact_sample)
-
-
-# Randomly sample 150 GEDI footprints (20% of sample size) that meet above criteria and create column highlighting them as =1
-#allGEDI_intact <- allGEDI_intact %>%
- # mutate(intact_sample = as.integer(row_number() %in% sample(n(), size = 150)))
-
-# Filter just the intact GEDI footprint samples
-#allGEDI_intact_sample <- allGEDI_intact %>%
-#  filter(intact_sample==1) %>%
- # dplyr::select(-intact_sample) 
-
-# samples spread across the amazon with various soil/ distance to river/ distance to degradation
+# Mapview check of data layers
+mapview(allGEDI2AB_reg_sec, zcol = "forest_age") + mapview(secondaryforest2024) + mapview(allGEDI2AB_reg_Intact)
 
 
 
-# Merge the secondary forest and ALS extent GEDI footprints data frame with new random intact samples
+# To create gradient of degradation from Intact to degraded/ recovering forest
+# Samples spread across the Amazon sites with various soil/ distance to river/ distance to degradation
+
+# Randomly sample 150 GEDI footprints (~20% of sample size) that meet above criteria and create column highlighting them as =1
+allGEDI2AB_reg_Intact <- allGEDI2AB_reg_Intact %>%
+  mutate(Intact_sample = as.integer(row_number() %in% sample(n(), size = 150)))
+
+# Filter just the Intact GEDI footprint samples
+allGEDI2AB_reg_Intact_sample <- allGEDI2AB_reg_Intact %>%
+  filter(Intact_sample==1) %>%
+  dplyr::select(-Intact_sample) 
+
+mapview(allGEDI2AB_reg_Intact_sample)
+
+
+
+# Merge the secondary forest and ALS extent GEDI footprints data frame with new random Intact samples
+# Remove the data entries for Rondonia that were classified as non forest in validation dataset
+# Clean dataset and extract degradation values into classified columns using process_GEDI_degradation function
 # For complete gradient of GEDI samples across the site
 
-allGEDI2A_gradient <- rbind(allGEDI2A_sec, allGEDI2A_intact_sample)
+GEDI2AB <- rbind(allGEDI2AB_reg_sec, allGEDI2AB_reg_Intact_sample)
 
-#allGEDI_gradient <- rbind(allGEDI_sec, allGEDI_intact_sample)
-
-allGEDI2A_gradient <- allGEDI2A_gradient %>%
-  mutate(Degrdtn = case_when(
-    burn_freq > 0 ~ "Burned",
-    forest_age < 50 ~ "Logged",
-    forest_age > 50 ~ "Intact",
-    TRUE ~ NA_character_)) %>%
-  mutate(Degradation = case_when(
-    burn_freq == 2 ~ "Burned",
-    burn_freq == 1 ~ "Burned",
-    burn_freq > 2 ~ "Burned 3+",
-    forest_age < 50 ~ "Logged",
-    forest_age > 50 ~ "Intact",
-    TRUE ~ NA_character_)) %>%
-  mutate(Age_category = cut(forest_age, breaks=c(-Inf, 6, 15, 25, 40, Inf), 
-                            labels=c("<6", "6-15", "15-25", "25-40", ">40"))) %>%
-  mutate(Age_category2 = cut(forest_age, breaks=c(-Inf, 10, 20, 30, 40, Inf), 
-                             labels=c("<10", "10-20", "20-30", "30-40", ">40")))
+GEDI2AB <- GEDI2AB %>%
+  filter(validation != 0 | is.na(validation)) %>%
+  process_GEDI_degradation()
 
 
-#allGEDI_gradient <- allGEDI_gradient %>%
- # select(year.x, solar_elevation, lat_lowestmode, lon_lowestmode, elev_highestreturn, elev_lowestmode,
-        # sensitivity, shot_number, degrade_flag,rh0, rh10, rh25, rh50, rh75, rh90, rh95, 
-        # rh96, rh97, rh98, rh99, rh100, geometry, forest_age, burn_freq, cover,
-        # pai, fhd_normal, pgap_theta, modis_treecover, agbd, agbd_se, agbd_pi_lower, agbd_pi_upper)
+sf::st_write(GEDI2AB, "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/GEDI2AB.fgb", delete_dsn = TRUE, overwrite = TRUE)
+# GEDI2AB <- read_sf("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/GEDI2AB.fgb")
 
-# TEMP FILES SO DONT NEED TO RUN ALL AGAIN 
-
-sf::st_write(allGEDI2A_gradient, "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI2A_gradient.fgb", delete_dsn = TRUE, overwrite = TRUE)
-sf::st_write(allGEDI_gradient, "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI_gradient.fgb", delete_dsn = TRUE, overwrite = TRUE)
-
-#allGEDI2A_gradient <- read_sf("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI2A_gradient.fgb")
-#allGEDI_gradient <- read_sf("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI_gradient_test.fgb")
-
-rm(allGEDI2A, allGEDI2A_aged, allGEDI2A_intact, allGEDI2A_intact_sample, allGEDI2A_sec)
-
-# ------ Extracting ALS metrics within GEDI footprints ------
-
-# As the ALS data spans different parts of the Amazon rainforest, they are separated in folders by their
-# CRS. Each ALS folder must therefore extract data from the GEDI footprints separately before being merged.
-
-# Reaload/filter and set CRS of final ALS catalogs if no longer in environment
-
-# DAAC18_19Sfinal <- readLAScatalog('/Users/emilydoyle/Library/CloudStorage/OneDrive-UniversityofExeter/LIDAR/DAAC18_19S/final_norm')
-# CAUT23_20Sfinal <- readLAScatalog('/Users/emilydoyle/Library/CloudStorage/OneDrive-UniversityofExeter/LIDAR/CAUT23_20S/final_norm')
-# DAAC1821_21Sfinal <- readLAScatalog('/Users/emilydoyle/Library/CloudStorage/OneDrive-UniversityofExeter/LIDAR/DAAC1821_21S/final_norm')
-# DAAC18_22Sfinal <- readLAScatalog('/Users/emilydoyle/Library/CloudStorage/OneDrive-UniversityofExeter/LIDAR/DAAC18_22S/final_norm')
-# 
-# DAAC18_19Sfinal <- filter_als(DAAC18_19Sfinal)
-# CAUT23_20Sfinal <- filter_als(CAUT23_20Sfinal)
-# DAAC1821_21Sfinal <- filter_als(DAAC1821_21Sfinal)
-# DAAC18_22Sfinal <- filter_als(DAAC18_22Sfinal)
-# 
-# st_crs(DAAC18_19Sfinal) <- 32719
-# st_crs(CAUT23_20Sfinal) <- 32720
-# st_crs(DAAC1821_21Sfinal) <- 32721
-# st_crs(DAAC18_22Sfinal) <- 32722
+mapview(secondaryforest2024) + mapview(Burnedforest) + mapview(GEDI2AB, zcol = "Degradation")
 
 
-# Filter and reproject the GEDI dataframe to match each CRS catalog
+# Repeat degradation extraction for all datasets
+{
 
-allGEDI2A_19S <- filter_reproj_GEDI(allGEDI2A, '19S', 'EPSG:32719')
-allGEDI2A_20S <- filter_reproj_GEDI(allGEDI2A, '20S', 'EPSG:32720')
-allGEDI2A_21S <- filter_reproj_GEDI(allGEDI2A, '21S', 'EPSG:32721')
-allGEDI2A_22S <- filter_reproj_GEDI(allGEDI2A, '22S', 'EPSG:32722')
-st_crs(allGEDI2A_19S) #, allGEDI2A_20S, allGEDI2A_21S, allGEDI2A_22S)
+# Mutate allGEDI2AB_reg, allGEDI2AB_ALS and allGEDI2AB4A_reg data set to also reflect degradation type
+# Overwrite files for final data frames for analysis/ summaries
 
+allGEDI2AB_reg <- allGEDI2AB_reg_aged %>%
+  process_GEDI_degradation()
 
- # Extracting metrics of ALS within GEDI footprints in the same CRS
+allGEDI2AB4A_reg_aged <- allGEDI2AB4A_reg %>%
+  mutate(forest_age = ifelse(is.na(forest_age), 99, forest_age))
 
-DAAC18_19Smetrics <- plot_metrics(DAAC18_19Sfinal, ~lidar_preds(Z, ReturnNumber, min = 0, max = Inf), allGEDI2A_19S, radius = 12.5)
-CAUT23_20Smetrics <- plot_metrics(CAUT23_20Sfinal, ~lidar_preds(Z, ReturnNumber, min = 0, max = Inf), allGEDI2A_20S, radius = 12.5)
-DAAC1821_21Smetrics <- plot_metrics(DAAC1821_21Sfinal, ~lidar_preds(Z, ReturnNumber, min = 0, max = Inf), allGEDI2A_21S, radius = 12.5)
-DAAC18_22Smetrics <- plot_metrics(DAAC18_22Sfinal, ~lidar_preds(Z, ReturnNumber, min = 0, max = Inf), allGEDI2A_22S, radius = 12.5)
+allGEDI2AB4A_reg <- allGEDI2AB4A_reg_aged %>%
+  process_GEDI_degradation()
 
+allGEDI2AB_ALS_aged <- allGEDI2AB_ALS %>%
+  mutate(forest_age = ifelse(is.na(forest_age), 99, forest_age))
 
-# Merging metrics and using control CRS (WGS84) associated with GEDI data now extraction is complete
+allGEDI2AB_ALS <- allGEDI2AB_ALS_aged %>%
+  process_GEDI_degradation()
 
-DAAC18_19Smetrics <- st_transform(allGEDI2A19S_metrics, "EPSG:32643")
-CAUT23_20Smetrics <- st_transform(allGEDI2A20S_metrics, "EPSG:32643")
-DAAC1821_21Smetrics <- st_transform(allGEDI2A21S_metrics, "EPSG:32643")
-DAAC18_22Smetrics <- st_transform(allGEDI2ACAUT20S_metrics, "EPSG:32643")
+# Load in 4A files to make comprehensive GEDI data frame also (sample size reduced however)
+allGEDI4A <- read_sf("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI4A.fgb")
 
-st_crs(allGEDI2A19S_metrics)
+# Remove geometry to join data by shot_number
+allGEDI4A_no_geom <- st_set_geometry(allGEDI4A, NULL)
 
-# Remove duplicated rows
-DAAC18_19Smetrics <- distinct(DAAC18_19Smetrics)
-CAUT23_20Smetrics <- distinct(CAUT23_20Smetrics)
-DAAC1821_21Smetrics <- distinct(DAAC1821_21Smetrics)
-DAAC18_22Smetrics <- distinct(DAAC18_22Smetrics)
+# Merge datasets based on shot_number to have GEDI4A carbon metrics also
+GEDI2AB4A <- GEDI2AB %>%
+  left_join(allGEDI4A_no_geom, by = "shot_number")
 
-# Assuming columns are in the same order and just have different names
-colnames(CAUT23_20Smetrics) <- colnames(DAAC18_19Smetrics)
-colnames(DAAC1821_21Smetrics) <- colnames(DAAC18_19Smetrics)
-colnames(DAAC18_22Smetrics) <- colnames(DAAC18_19Smetrics)
+GEDI2AB4A <- GEDI2AB4A %>% 
+  drop_na(agbd)
 
-# Combine the dataframes into one dataframe using bind_rows
-merged_df <- bind_rows(DAAC18_19Smetrics, 
-                       CAUT23_20Smetrics,
-                       DAAC1821_21Smetrics,
-                       DAAC18_22Smetrics)
+# Overwrite final datasets : allGEDI2AB_reg (GEDI2A with regression), 
+#                  allGEDI2AB4A_reg (GEDI2A and 4A with regression), 
+#                  allGEDI2AB_ALS (GEDI2A with regression and ALS data), 
+#                  GEDI2AB (forest degradation gradient GEDI2A with regression and ALS), 
+#                  GEDI2AB4A (forest degradation gradient GEDI2A and 4A with regression and ALS)
+# Sample sizes become smaller when including GEDI 4A and ALS data so retaining original samples also
 
+sf::st_write(allGEDI2AB_ALS, "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI2AB_ALS.fgb", delete_dsn = TRUE, overwrite = TRUE)
+sf::st_write(allGEDI2AB_reg, "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI2AB_regressions.fgb", delete_dsn = TRUE, overwrite = TRUE)
+sf::st_write(allGEDI2AB4A_reg, "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI2AB4A_reg.fgb", delete_dsn = TRUE, overwrite = TRUE)
+sf::st_write(GEDI2AB4A, "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/GEDI2AB4A.fgb", delete_dsn = TRUE, overwrite = TRUE)
 
-# WORK ON THIS BIT
-# Remove rows with NAs in the 'year' column
-allheight <- merged_df %>%
-  filter(!is.na(rhz95))
-
-sf::st_write(allheight, "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allheight_draft.fgb", delete_dsn = TRUE, overwrite = TRUE)
-allheight <- read_sf("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allheight_draft.fgb")
-
-
-# MERGE GEDI GRADIENT AND PICK THE USEFUL BITS?
+# allGEDI2AB_reg <- read_sf("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI2AB_regressions.fgb")
+# allGEDI2AB_ALS <- read_sf("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI2AB_ALS.fgb")
+# allGEDI2AB4A_reg <- read_sf("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI2AB4A_reg.fgb")
+# GEDI2AB4A <- read_sf("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/GEDI2AB4A.fgb")
 
 
-rm(allGEDI2A_19S, allGEDI2A_20S, allGEDI2A_21S, allGEDI2A_22S, DAAC18_19Sfinal, 
-   DAAC18_20Sfinal, DAAC1821_21Sfinal, DAAC18_22Sfinal, DAAC18_19Smetrics, DAAC18_20Smetrics,
-   DAAC1821_21Smetrics, DAAC18_22Smetrics)
 
+}
+
+
+# Tidy environment
+
+rm(allGEDI, allGEDI2AB, allGEDI2AB_reg_aged, allGEDI2AB_reg_Intact, allGEDI2AB_reg_Intact_sample, 
+   allGEDI2AB_reg_sec, allGEDI2AB4A_reg_aged, allGEDI2AB_ALS_aged)
+                  
 # ------ Statistics CHECK ---------
 
-# EXAMPLE CODE OF A LINS CCC
-# Plot Tramway Runscomparison of resampling
+# Calculate Lin's CCC model for entire GEDI/ ALS dataset at rh97 using calculate_ccc function
+ccc_mod <- calculate_ccc(allGEDI2AB_ALS)
+print(ccc_mod)
 
-x <- as.vector(MeanFwdSeqresampNDVI)
-y <- as.vector(MeanFwdMREresampNDVI)
-df <- data.frame(x = x, y = y,
-                 d = densCols(x, y, colramp = colorRampPalette(rev(c('yellow','orange','turquoise4','dodgerblue4')))))#colorRampPalette(rev(rainbow(10, end = 4/6)))))
-# Calculate Total Least Squares Regression (extracted from base-R PCA function)
-pca <- prcomp(~x+y,df)
-tls_slp <- with(pca, rotation[2,1] / rotation[1,1]) # compute slope
-tls_int <- with(pca, center[2] - tls_slp*center[1]) # compute y-intercept
-equation <- paste("y = ", round(tls_int, 3), "+", round(tls_slp, 3), "x")
+# Subsets of forest gradient of degradation/ recovery
+ccc_modint <- calculate_ccc(allGEDI2AB_ALS, "Degradation == 'Intact'")
+print(ccc_modint)
 
+ccc_modlog <- calculate_ccc(allGEDI2AB_ALS, "Degradation == 'Logged'")
+print(ccc_modlog)
 
+ccc_modburn <- calculate_ccc(allGEDI2AB_ALS, "Degradation == 'Burned' | Degradation == 'Burned 3+'")
+print(ccc_modburn)
 
-library(DescTools)
+ccc_modburnfreq1_3 <- calculate_ccc(allGEDI2AB_ALS, "burn_freq %in% 1:3")
+print(ccc_modburnfreq1_3)
 
-# Compute the Lin's correlation concordance coefficient
-
-#mod
-x <- allheight$rh95
-y <- allheight$zq95
-ccc_result <- CCC(x, y, ci = "z-transform",conf.level = 0.95)
-ccc_mod <- paste("CCC = ", round(ccc_result$rho.c[1], 2))
-ccc_mod
-
-#modint
-attach(allheight)
-x <- allheight$rh95[Degrdtn == 'intact']
-y <- allheight$zq95[Degrdtn == 'intact']
-ccc_result <- CCC(x, y, ci = "z-transform",conf.level = 0.95)
-ccc_modint <- paste("CCC = ", round(ccc_result$rho.c[1], 2))
-ccc_modint
-
-#modlog
-attach(allheight)
-x <- allheight$rh95[Degrdtn == 'logged']
-y <- allheight$zq95[Degrdtn == 'logged']
-ccc_result <- CCC(x, y, ci = "z-transform",conf.level = 0.95)
-ccc_modlog <- paste("CCC = ", round(ccc_result$rho.c[1], 2))
-ccc_modlog
-
-#modburn
-attach(allheight)
-x <- allheight$rh95[Degrdtn == 'burned']
-y <- allheight$zq95[Degrdtn == 'burned']
-ccc_result <- CCC(x, y, ci = "z-transform",conf.level = 0.95)
-ccc_modburn <- paste("CCC = ", round(ccc_result$rho.c[1], 2))
-ccc_modburn
-
-#modburnfreq1_3
-attach(allheight)
-x <- allheight$rh95[brn_frq %in% 1:3]
-y <- allheight$zq95[brn_frq %in% 1:3]
-ccc_result <- CCC(x, y, ci = "z-transform",conf.level = 0.95)
-ccc_modburnfreq1_3 <- paste("CCC = ", round(ccc_result$rho.c[1], 2))
-ccc_modburnfreq1_3
-
-#modburnfreq4_6
-attach(allheight)
-x <- allheight$rh95[brn_frq %in% 4:6]
-y <- allheight$zq95[brn_frq %in% 4:6]
-ccc_result <- CCC(x, y, ci = "z-transform",conf.level = 0.95)
-ccc_modburnfreq4_6 <- paste("CCC = ", round(ccc_result$rho.c[1], 2))
+ccc_modburnfreq4_6 <- calculate_ccc(allGEDI2AB_ALS, "burn_freq %in% 4:6")
+print(ccc_modburnfreq4_6)
 
 
 
-# Create panel in paper of rh25 zq25 upwards
 
-# Inspired by Dorado et al 2021
+# RMSE calculations Inspired by Dorado et al (2021)
 
 # Define linear regression models for different conditions and burn frequencies
-mod <- lm(zq95 ~ rh95, data = allheight)
-modint <- lm(zq95[Degrdtn == 'intact'] ~ rh95[Degrdtn == 'intact'], data = allheight)
-modlog <- lm(zq95[Degrdtn == 'logged'] ~ rh95[Degrdtn == 'logged'], data = allheight)
-modburn <- lm(zq95[Degrdtn == 'burned'] ~ rh95[Degrdtn == 'burned'], data = allheight)
-modburnfreq1_3 <- lm(zq95[brn_frq %in% 1:3] ~ rh95[brn_frq %in% 1:3], data = allheight)
-modburnfreq4_6 <- lm(zq95[brn_frq %in% 4:6] ~ rh95[brn_frq %in% 4:6], data = allheight)
+mod <- lm(rhz95 ~ rh95, data = allGEDI2AB_ALS)
+modint <- lm(rhz95[Degradation == 'Intact'] ~ rh95[Degradation == 'Intact'], data = allGEDI2AB_ALS)
+modlog <- lm(rhz95[Degradation == 'Logged'] ~ rh95[Degradation == 'Logged'], data = allGEDI2AB_ALS)
+modburn <- lm(rhz95[Degradation == 'Burned'] ~ rh95[Degradation == 'Burned'], data = allGEDI2AB_ALS)
+modburnfreq1_3 <- lm(rhz95[burn_freq %in% 1:3] ~ rh95[burn_freq %in% 1:3], data = allGEDI2AB_ALS)
+modburnfreq4_6 <- lm(rhz95[burn_freq %in% 4:6] ~ rh95[burn_freq %in% 4:6], data = allGEDI2AB_ALS)
 
 
 # Compute RMSE
-# Difference between zq and rh predicted values - positive or negative not identified
+# Difference between rhz and rh predicted values - positive or negative not identified
 # Error as opposed to fitting a modeled error to predict hypothetical error
-rmse <- sqrt(sum((allheight$zq95 - allheight$rh95)^2, na.rm = TRUE) / length(which(!is.na(allheight$zq95))))
-rmse_int <- sqrt(sum((allheight$zq95[which(allheight$Degrdtn == 'intact')] - allheight$rh95[which(allheight$Degrdtn == 'intact')])^2, na.rm = TRUE) /length(which(!is.na(allheight$rh95[which(allheight$Degrdtn == 'intact')]))))
-rmse_log <- sqrt(sum((allheight$zq95[which(allheight$Degrdtn == 'logged')] - allheight$rh95[which(allheight$Degrdtn == 'logged')])^2, na.rm = TRUE)/length(which(!is.na(allheight$rh95[which(allheight$Degrdtn == 'logged')]))))
-rmse_burn <- sqrt(sum((allheight$zq95[which(allheight$Degrdtn == 'burned')] - allheight$rh95[which(allheight$Degrdtn == 'burned')])^2, na.rm = TRUE)/length(which(!is.na(allheight$rh95[which(allheight$Degrdtn == 'burned')]))))
-rmse_burnfreq1_3 <- sqrt(sum((allheight$zq95[which(allheight$brn_frq %in% 1:3)] - allheight$rh95[which(allheight$brn_frq %in% 1:3)])^2, na.rm = TRUE) / length(which(!is.na(allheight$rh95[which(allheight$brn_frq %in% 1:3)]))))
-rmse_burnfreq4_6 <- sqrt(sum((allheight$zq95[which(allheight$brn_frq %in% 4:6)] - allheight$rh95[which(allheight$brn_frq %in% 4:6)])^2, na.rm = TRUE) / length(which(!is.na(allheight$rh95[which(allheight$brn_frq %in% 4:6)]))))
+rmse <- sqrt(sum((allGEDI2AB_ALS$rhz95 - allGEDI2AB_ALS$rh95)^2, na.rm = TRUE) / length(which(!is.na(allGEDI2AB_ALS$rhz95))))
+rmse_int <- sqrt(sum((allGEDI2AB_ALS$rhz95[which(allGEDI2AB_ALS$Degradation == 'Intact')] - allGEDI2AB_ALS$rh95[which(allGEDI2AB_ALS$Degradation == 'Intact')])^2, na.rm = TRUE) /length(which(!is.na(allGEDI2AB_ALS$rh95[which(allGEDI2AB_ALS$Degradation == 'Intact')]))))
+rmse_log <- sqrt(sum((allGEDI2AB_ALS$rhz95[which(allGEDI2AB_ALS$Degradation == 'Logged')] - allGEDI2AB_ALS$rh95[which(allGEDI2AB_ALS$Degradation == 'Logged')])^2, na.rm = TRUE)/length(which(!is.na(allGEDI2AB_ALS$rh95[which(allGEDI2AB_ALS$Degradation == 'Logged')]))))
+rmse_burn <- sqrt(sum((allGEDI2AB_ALS$rhz95[which(allGEDI2AB_ALS$Degradation == 'Burned')] - allGEDI2AB_ALS$rh95[which(allGEDI2AB_ALS$Degradation == 'Burned')])^2, na.rm = TRUE)/length(which(!is.na(allGEDI2AB_ALS$rh95[which(allGEDI2AB_ALS$Degradation == 'Burned')]))))
+rmse_burnfreq1_3 <- sqrt(sum((allGEDI2AB_ALS$rhz95[which(allGEDI2AB_ALS$burn_freq %in% 1:3)] - allGEDI2AB_ALS$rh95[which(allGEDI2AB_ALS$burn_freq %in% 1:3)])^2, na.rm = TRUE) / length(which(!is.na(allGEDI2AB_ALS$rh95[which(allGEDI2AB_ALS$burn_freq %in% 1:3)]))))
+rmse_burnfreq4_6 <- sqrt(sum((allGEDI2AB_ALS$rhz95[which(allGEDI2AB_ALS$burn_freq %in% 4:6)] - allGEDI2AB_ALS$rh95[which(allGEDI2AB_ALS$burn_freq %in% 4:6)])^2, na.rm = TRUE) / length(which(!is.na(allGEDI2AB_ALS$rh95[which(allGEDI2AB_ALS$burn_freq %in% 4:6)]))))
 
 # Compute mean ALS height
-mean_actual <- sum(mean(allheight$zq95))
+mean_actual <- sum(mean(allGEDI2AB_ALS$rhz95))
 
 # Compute relative rmse
 rrmse <- sum(rmse/mean_actual)*100
@@ -737,13 +692,13 @@ rrmse_burnfreq1_3 <- sum(rmse_burnfreq1_3/mean_actual)*100
 rrmse_burnfreq4_6 <- sum(rmse_burnfreq4_6/mean_actual)*100
 
 
-# Compute bias:  Average difference between zq and rh (in this case hyp is -0.7m lower than rh)
-bias <- sum((allheight$zq95 - allheight$rh95), na.rm = TRUE)/length(which(!is.na(allheight$rh95)))
-bias_int <- sum(allheight$zq95[allheight$Degrdtn == 'intact'] - allheight$rh95[allheight$Degrdtn == 'intact'], na.rm = TRUE)/length(which(!is.na(allheight$rh95[allheight$Degrdtn == 'intact'])))
-bias_log <- sum(allheight$zq95[allheight$Degrdtn == 'logged'] - allheight$rh95[allheight$Degrdtn == 'logged'], na.rm = TRUE)/length(which(!is.na(allheight$rh95[allheight$Degrdtn == 'logged'])))
-bias_burn <- sum(allheight$zq95[allheight$Degrdtn == 'burned'] - allheight$rh95[allheight$Degrdtn == 'burned'], na.rm = TRUE)/length(which(!is.na(allheight$rh95[allheight$Degrdtn == 'burned'])))
-bias_burnfreq1_3 <- sum(allheight$zq95[allheight$brn_frq %in% 1:3] - allheight$rh95[allheight$brn_frq %in% 1:3], na.rm = TRUE) / length(which(!is.na(allheight$rh95[allheight$brn_frq %in% 1:3])))
-bias_burnfreq4_6 <- sum(allheight$zq95[allheight$brn_frq %in% 4:6] - allheight$rh95[allheight$brn_frq %in% 4:6], na.rm = TRUE) / length(which(!is.na(allheight$rh95[allheight$brn_frq %in% 4:6])))
+# Compute bias:  Average difference between rhz and rh (in this case hyp is -0.7m lower than rh)
+bias <- sum((allGEDI2AB_ALS$rhz95 - allGEDI2AB_ALS$rh95), na.rm = TRUE)/length(which(!is.na(allGEDI2AB_ALS$rh95)))
+bias_int <- sum(allGEDI2AB_ALS$rhz95[allGEDI2AB_ALS$Degradation == 'Intact'] - allGEDI2AB_ALS$rh95[allGEDI2AB_ALS$Degradation == 'Intact'], na.rm = TRUE)/length(which(!is.na(allGEDI2AB_ALS$rh95[allGEDI2AB_ALS$Degradation == 'Intact'])))
+bias_log <- sum(allGEDI2AB_ALS$rhz95[allGEDI2AB_ALS$Degradation == 'Logged'] - allGEDI2AB_ALS$rh95[allGEDI2AB_ALS$Degradation == 'Logged'], na.rm = TRUE)/length(which(!is.na(allGEDI2AB_ALS$rh95[allGEDI2AB_ALS$Degradation == 'Logged'])))
+bias_burn <- sum(allGEDI2AB_ALS$rhz95[allGEDI2AB_ALS$Degradation == 'Burned'] - allGEDI2AB_ALS$rh95[allGEDI2AB_ALS$Degradation == 'Burned'], na.rm = TRUE)/length(which(!is.na(allGEDI2AB_ALS$rh95[allGEDI2AB_ALS$Degradation == 'Burned'])))
+bias_burnfreq1_3 <- sum(allGEDI2AB_ALS$rhz95[allGEDI2AB_ALS$burn_freq %in% 1:3] - allGEDI2AB_ALS$rh95[allGEDI2AB_ALS$burn_freq %in% 1:3], na.rm = TRUE) / length(which(!is.na(allGEDI2AB_ALS$rh95[allGEDI2AB_ALS$burn_freq %in% 1:3])))
+bias_burnfreq4_6 <- sum(allGEDI2AB_ALS$rhz95[allGEDI2AB_ALS$burn_freq %in% 4:6] - allGEDI2AB_ALS$rh95[allGEDI2AB_ALS$burn_freq %in% 4:6], na.rm = TRUE) / length(which(!is.na(allGEDI2AB_ALS$rh95[allGEDI2AB_ALS$burn_freq %in% 4:6])))
 
 
 # Compute relative bias : rbias (y = mean height of the hypsometer) % error relative to height of category
@@ -774,6 +729,67 @@ stats_results <- data.frame(
 
 
 
+conditions <- c("All", "Degradation == 'Intact'", "Degradation == 'Logged'", 
+                "burned", "burn_freq %in% 1:3", "burn_freq %in% 4:6")
+
+# Initialize vectors to store results
+pearsons_r <- numeric(length(conditions))
+rmse_m <- numeric(length(conditions))
+rrmse <- numeric(length(conditions))
+bias_m <- numeric(length(conditions))
+relative_bias <- numeric(length(conditions))
+
+# Calculate mean actual height
+mean_actual <- mean(allGEDI2AB_ALS$rhz95, na.rm = TRUE)
+
+for (i in seq_along(conditions)) {
+  condition <- conditions[i]
+  if (condition == "All") {
+    data_subset <- allGEDI2AB_ALS
+  } else if (condition == "burned") {
+    data_subset <- handle_burned_condition(allGEDI2AB_ALS)
+  } else {
+    data_subset <- allGEDI2AB_ALS %>% filter(!!rlang::parse_expr(condition))
+  }
+  pearsons_r[i] <- calculate_coef(data_subset)
+  stats <- calculate_stats(data_subset)
+  rmse_m[i] <- stats$rmse
+  rrmse[i] <- (stats$rmse / mean_actual) * 100
+  bias_m[i] <- stats$bias
+  relative_bias[i] <- (stats$bias / mean_actual) * 100
+}
+
+# Create a dataframe to store the results
+stats_results <- data.frame(
+  Forest_Condition = c("All", "Intact", "Logged", "Burned", "Burned 1-3", "Burned 4-6"),
+  Pearsons_r = pearsons_r,
+  RMSE_m = rmse_m,
+  rRMSE = rrmse,
+  Bias_m = bias_m,
+  Relative_Bias = relative_bias
+)
+
+print(stats_results)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 # TESTING FOR THE PCA
@@ -781,7 +797,7 @@ stats_results <- data.frame(
 
 # Eventually need this to inlcude all the ALS waveform stats, GEDI rh intervals
 # canopy cover metrics etc
-allGEDI2APCA <- allGEDI2A_gradient %>%
+allGEDI2APCA <- GEDI2AB_ALS %>%
   mutate(Degradation_numeric = case_when(
     Degradation == 'Burned' ~ "2",
     Degradation == 'Logged' ~ "1",
@@ -810,7 +826,7 @@ pca_result <- prcomp(scaled_data, center = TRUE, scale. = TRUE)
 #  Summary of the variance explained by each principal component
 summary(pca_result)
 
-# Extract loadings for the first few PCs for burned data
+# Extract loadings for the first few PCs for Burned data
 loadings_pca <- pca_result$rotation[, 1:3]  # Adjust the number (e.g., 1:3) for the desired number of PCs
 print(loadings_pca)
 
@@ -872,51 +888,51 @@ fig
 
 
 # Subset data for each degradation type
-burned_data <- allGEDI2APCA[allGEDI2APCA$Degradation_numeric == 2, ]
-logged_data <- allGEDI2APCA[allGEDI2APCA$Degradation_numeric == 1, ]
-intact_data <- allGEDI2APCA[allGEDI2APCA$Degradation_numeric == 0, ]
+Burned_data <- allGEDI2APCA[allGEDI2APCA$Degradation_numeric == 2, ]
+Logged_data <- allGEDI2APCA[allGEDI2APCA$Degradation_numeric == 1, ]
+Intact_data <- allGEDI2APCA[allGEDI2APCA$Degradation_numeric == 0, ]
 
 # Remove columns with zero variance (excluding Degradation_numeric)
-burned_data <- burned_data[, apply(burned_data[, -which(names(burned_data) == "Degradation_numeric")], 2, function(x) var(x) != 0)]
-logged_data <- logged_data[, apply(logged_data[, -which(names(logged_data) == "Degradation_numeric")], 2, function(x) var(x) != 0)]
-intact_data <- intact_data[, apply(intact_data[, -which(names(intact_data) == "Degradation_numeric")], 2, function(x) var(x) != 0)]
+Burned_data <- Burned_data[, apply(Burned_data[, -which(names(Burned_data) == "Degradation_numeric")], 2, function(x) var(x) != 0)]
+Logged_data <- Logged_data[, apply(Logged_data[, -which(names(Logged_data) == "Degradation_numeric")], 2, function(x) var(x) != 0)]
+Intact_data <- Intact_data[, apply(Intact_data[, -which(names(Intact_data) == "Degradation_numeric")], 2, function(x) var(x) != 0)]
 
-# Perform PCA for burned data
-pca_burned <- prcomp(select(burned_data, -Degradation_numeric), center = TRUE, scale. = TRUE)
+# Perform PCA for Burned data
+pca_Burned <- prcomp(select(Burned_data, -Degradation_numeric), center = TRUE, scale. = TRUE)
 
-# Perform PCA for logged data
-pca_logged <- prcomp(select(logged_data, -Degradation_numeric), center = TRUE, scale. = TRUE)
+# Perform PCA for Logged data
+pca_Logged <- prcomp(select(Logged_data, -Degradation_numeric), center = TRUE, scale. = TRUE)
 
-# Perform PCA for intact data
-pca_intact <- prcomp(select(intact_data, -Degradation_numeric), center = TRUE, scale. = TRUE)
+# Perform PCA for Intact data
+pca_Intact <- prcomp(select(Intact_data, -Degradation_numeric), center = TRUE, scale. = TRUE)
 
 # Analyze PCA results for each subset
-summary(pca_burned)
-summary(pca_logged)
-summary(pca_intact)
+summary(pca_Burned)
+summary(pca_Logged)
+summary(pca_Intact)
 
-# Extract loadings for the first few PCs for burned data
-loadings_burned <- pca_burned$rotation[, 1:3]  # Adjust the number (e.g., 1:3) for the desired number of PCs
+# Extract loadings for the first few PCs for Burned data
+loadings_Burned <- pca_Burned$rotation[, 1:3]  # Adjust the number (e.g., 1:3) for the desired number of PCs
 
-# Extract loadings for the first few PCs for logged data
-loadings_logged <- pca_logged$rotation[, 1:3]
+# Extract loadings for the first few PCs for Logged data
+loadings_Logged <- pca_Logged$rotation[, 1:3]
 
-# Extract loadings for the first few PCs for intact data
-loadings_intact <- pca_intact$rotation[, 1:3]
+# Extract loadings for the first few PCs for Intact data
+loadings_Intact <- pca_Intact$rotation[, 1:3]
 
 # Print the loadings
-print(loadings_burned)
-print(loadings_logged)
-print(loadings_intact)
+print(loadings_Burned)
+print(loadings_Logged)
+print(loadings_Intact)
 
 # Plot PCA results for each subset
-plot(pca_burned, main = "PCA for Burned Data")
-plot(pca_logged, main = "PCA for Logged Data")
-plot(pca_intact, main = "PCA for Intact Data")
+plot(pca_Burned, main = "PCA for Burned Data")
+plot(pca_Logged, main = "PCA for Logged Data")
+plot(pca_Intact, main = "PCA for Intact Data")
 # Plot PCA results for each subset
-plot(pca_burned, main = "PCA for Burned Data")
-plot(pca_logged, main = "PCA for Logged Data")
-plot(pca_intact, main = "PCA for Intact Data")
+plot(pca_Burned, main = "PCA for Burned Data")
+plot(pca_Logged, main = "PCA for Logged Data")
+plot(pca_Intact, main = "PCA for Intact Data")
 
 
 
@@ -930,18 +946,18 @@ plot(pca_intact, main = "PCA for Intact Data")
 # ------- Graphs/ visulisations CHECK-------
 
 
-allheight <- allheight %>%
+allGEDI2AB_ALS <- allGEDI2AB_ALS %>%
   mutate(Degradation = case_when(
-    brn_frq == 2 ~ "Burned",
-    brn_frq == 1 ~ "Burned",
-    brn_frq > 2 ~ "Burned 3+",
+    burn_freq == 2 ~ "Burned",
+    burn_freq == 1 ~ "Burned",
+    burn_freq > 2 ~ "Burned 3+",
     forst_g < 50 ~ "Logged",
     forst_g > 50 ~ "Intact",
     TRUE ~ NA_character_))
 
 # Violin plot for GEDI top height across degradation
-GEDIrh99_degradation <- allheight %>%
-  ggplot(aes(x = Degrdtn, y = rh99, fill = Degrdtn)) +
+GEDIrh99_degradation <- allGEDI2AB_ALS %>%
+  ggplot(aes(x = Degradation, y = rh99, fill = Degradation)) +
   geom_violin(color = "black", alpha = 0.8) +
   geom_jitter(width = 0.1, size = 1, alpha = 0.5) +
   labs(title = "GEDI Canopy height with various degradation type", x = "Degradation type", y = "Relative height top of canopy (m) (rh99)") +
@@ -955,7 +971,7 @@ plot(GEDIrh99_degradation)
 
 # Violin plot for GEDI top height across degradation
 GEDIcover_violin <- allGEDI_gradient %>%
-  ggplot(aes(x = Degrdtn, y = cover, fill = Degrdtn)) +
+  ggplot(aes(x = Degradation, y = cover, fill = Degradation)) +
   geom_violin(color = "black", alpha = 0.8) +
   geom_jitter(width = 0.1, size = 1, alpha = 0.5) +
   labs(title = "GEDI Canopy cover with various degradation type", x = "Degradation type", y = "Canopy cover (%)") +
@@ -973,9 +989,9 @@ plot(GEDIcover_violin)
 
 # GEDI DEGRADATION AGE
 age_order <- c("<6", "6-15", "15-25", "25-40", ">40")
-allGEDI2A_gradient <- mutate(allGEDI2A_gradient, Age_category = factor(Age_category, levels = age_order))
+GEDI2AB_ALS <- mutate(GEDI2AB_ALS, Age_category = factor(Age_category, levels = age_order))
 
-GEDIheight_age <- allGEDI2A_gradient %>%
+GEDIheight_age <- GEDI2AB_ALS %>%
   ggplot() +
   geom_point(aes(x = Age_category, y = rh99, color = Degradation2)) +
   labs(title = "GEDI canopy height by degradation", x = "Forest age", y = "Canopy height (m)") +
@@ -995,7 +1011,7 @@ allGEDI_gradient <- mutate(allGEDI_gradient, Age_category = cut(forest_age, brea
 
 GEDIcover_age <- allGEDI_gradient %>%
   ggplot() +
-  geom_point(aes(x = Age_category, y = cover, color = Degrdtn)) +
+  geom_point(aes(x = Age_category, y = cover, color = Degradation)) +
   labs(title = "GEDI canopy cover", x = "Forest age", y = "Canopy cover (%)") +
   #scale_color_continuous(name = "AGBD", low = "greenyellow", high = "darkgreen") +  # Set color for the legend bar
   theme_bw()
@@ -1011,7 +1027,7 @@ allGEDI_gradient <- mutate(allGEDI_gradient, Age_category = cut(forest_age, brea
 
 GEDIcover_degradation <- allGEDI_gradient %>%
   ggplot() +
-  geom_point(aes(x = Degrdtn, y = cover, color = Degrdtn)) +
+  geom_point(aes(x = Degradation, y = cover, color = Degradation)) +
   labs(title = "GEDI canopy cover", x = "Forest age", y = "Canopy cover (%)") +
   #scale_color_continuous(name = "AGBD", low = "greenyellow", high = "darkgreen") +  # Set color for the legend bar
   theme_bw()
@@ -1036,8 +1052,8 @@ plot(GEDIcover_agbd)
 
 
 # Graph for correspondence between ALS95 and GEDI95
-ALSGEDIrh95 <- allheight %>%
-  ggplot(aes(x=zq95, y=rh95, color=Degradation)) +
+ALSGEDIrh95 <- allGEDI2AB_ALS %>%
+  ggplot(aes(x=rhz95, y=rh95, color=Degradation)) +
   geom_point() +
   labs(title = "Correspondance between ALS and GEDI 95%", x = "ALS", y = "GEDI") +
   theme_bw() +
@@ -1046,8 +1062,8 @@ plot(ALSGEDIrh95)
 
 
 # Graph for correspondence between ALS95 and GEDI95
-ALSGEDIrh75 <- allheight %>%
-  ggplot(aes(x=zq75, y=rh75, color=Degrdtn)) +
+ALSGEDIrh75 <- allGEDI2AB_ALS %>%
+  ggplot(aes(x=rhz75, y=rh75, color=Degradation)) +
   geom_point() +
   labs(title = "Correspondance between ALS and GEDI 75%", x = "ALS", y = "GEDI") +
   theme_bw() 
@@ -1055,8 +1071,8 @@ ALSGEDIrh75 <- allheight %>%
 plot(ALSGEDIrh75)
 
 # Graph for correspondence between ALS95 and GEDI95
-ALSGEDIrh95 <- allheight %>%
-  ggplot(aes(x=zq95, y=rh95, color=Degrdtn)) +
+ALSGEDIrh95 <- allGEDI2AB_ALS %>%
+  ggplot(aes(x=rhz95, y=rh95, color=Degradation)) +
   geom_point() +
   labs(title = "Correspondance between ALS and GEDI 95%", x = "ALS", y = "GEDI") +
   theme_bw() 
@@ -1065,8 +1081,8 @@ plot(ALSGEDIrh95)
 
 
 # Graph for correspondence between ALS95 and GEDI95
-ALSGEDIrh50 <- allheight %>%
-  ggplot(aes(x=zq75, y=rh50, color=Degrdtn)) +
+ALSGEDIrh50 <- allGEDI2AB_ALS %>%
+  ggplot(aes(x=rhz75, y=rh50, color=Degradation)) +
   geom_point() +
   labs(title = "Correspondance between ALS and GEDI 50%", x = "ALS", y = "GEDI") +
   theme_bw() 
@@ -1077,11 +1093,11 @@ plot(ALSGEDIrh50)
 
 # NEED TO LOOK AT PLOTTING THE VARIANCES
 
-allGEDI2A_gradient$G_slope <- as.numeric(allGEDI2A_gradient$G_slope)
-allGEDI2A_gradient$G_variance <- as.numeric(allGEDI2A_gradient$G_variance)
-allGEDI2A_gradient$G_intercept <- as.numeric(allGEDI2A_gradient$G_intercept)
+GEDI2AB_ALS$G_slope <- as.numeric(GEDI2AB_ALS$G_slope)
+GEDI2AB_ALS$G_variance <- as.numeric(GEDI2AB_ALS$G_variance)
+GEDI2AB_ALS$G_intercept <- as.numeric(GEDI2AB_ALS$G_intercept)
 
-GEDI_slope <- allGEDI2A_gradient %>%
+GEDI_slope <- GEDI2AB_ALS %>%
   ggplot(aes(x=Degradation, y=G_variance, color=Degradation)) +
   geom_point() +
   labs(title = "G_slope", x = "height", y = "G_slope") +
@@ -1090,8 +1106,8 @@ GEDI_slope <- allGEDI2A_gradient %>%
 plot(GEDI_slope)
 
 # Violin plot for GEDI top height across degradation
-GEDI_slope <- allGEDI2A_gradient %>%
-  ggplot(aes(x=Degrdtn, y=G_slope, fill=Degrdtn)) +
+GEDI_slope <- GEDI2AB_ALS %>%
+  ggplot(aes(x=Degradation, y=G_slope, fill=Degradation)) +
   geom_violin(color = "black", alpha = 0.8) +
   geom_jitter(width = 0.1, size = 1, alpha = 0.5) +
   labs(title = "Gradient slope of relative height profile", x = "Degradation type", y = "Slope") +
@@ -1105,10 +1121,10 @@ plot(GEDI_slope)
 
 # Violin plot for GEDI top height across degradation
 
-allGEDI2A_gradienttest <- allGEDI2A_gradient %>%
-  mutate(status = ifelse(Degradation == "logged" | Degradation == "burned", "degraded", "intact"))
+GEDI2AB_ALStest <- GEDI2AB_ALS %>%
+  mutate(status = ifelse(Degradation == "Logged" | Degradation == "Burned", "degraded", "Intact"))
 
-GEDI_condition_test <- allGEDI2A_gradienttest %>%
+GEDI_condition_test <- GEDI2AB_ALStest %>%
   ggplot(aes(x=status, y=G_slope, fill=status)) +
   geom_violin(color = "black", alpha = 0.8) +
   geom_jitter(width = 0.1, size = 1, alpha = 0.5) +
@@ -1120,6 +1136,22 @@ GEDI_condition_test <- allGEDI2A_gradienttest %>%
     legend.position = "none"
   )
 plot(GEDI_condition_test)
+
+
+
+
+
+
+
+#make column for forest extent and under 4m (maybe 5 for FAO definition) in height for non-forest
+
+test <- filter(allGEDI2AB_reg, rh100<4)
+
+
+
+
+
+
 
 
 

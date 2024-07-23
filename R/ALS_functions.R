@@ -361,19 +361,7 @@ wvf_ggplot <- function(x, wf, z, .ylab = "Elevation (m)") {
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-# Filter andn reproject GEDI dataset to match ALS CRS
+# Filter and reproject GEDI dataset to match ALS CRS
 filter_reproj_GEDI <- function(data, als_crs_value, epsg_code) {
   # Filter the data based on ALS_CRS value
   filtered_data <- data %>%
@@ -386,6 +374,25 @@ filter_reproj_GEDI <- function(data, als_crs_value, epsg_code) {
   return(transformed_data)
 }
 
+
+
+# Cleaning/ addng extacted degradation type to datasets
+
+process_GEDI_degradation <- function(data) {
+  data %>%
+    mutate(Degradation = case_when(
+      burn_freq == 2 ~ "Burned",
+      burn_freq == 1 ~ "Burned",
+      burn_freq > 2 ~ "Burned 3+",
+      forest_age < 50 ~ "Logged",
+      forest_age >= 50 ~ "Intact",
+      TRUE ~ NA_character_
+    )) %>%
+    mutate(Age_category = cut(forest_age, breaks = c(-Inf, 6, 15, 25, 40, Inf), 
+                              labels = c("<7", "7-15", "15-25", "25-40", ">40"))) %>%
+    mutate(Age_category2 = cut(forest_age, breaks = c(-Inf, 10, 20, 30, 40, Inf), 
+                               labels = c("<10", "10-20", "20-30", "30-40", ">40")))
+}
 
 
 
@@ -412,7 +419,6 @@ height_preds <- function(Z, percentiles = c(seq(0.1, 0.9, 0.1), 0.25, 0.75, 0.95
     stats::setNames(paste0("rhz", (percentiles * 100))) |>
     as.data.frame()
 }
-
 
 l_moment_preds <- function(Z) {
   if (length(unique(Z)) == 1) {
@@ -539,11 +545,6 @@ lidar_preds <- function(Z, ReturnNumber, min = 0, max = Inf) {
 
 
 
-
-
-
-
-
 #' Relative height metrics function
 #' For use with lidR::plot_metrics or lidR::pixel_metrics functions. Assumes
 #' the point cloud has been normalised to ground level.
@@ -589,61 +590,6 @@ compute_plot_metrics <- function(
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# Custom function to calculate canopy cover for circular plots within a polygonal footprint
-calculate_canopy_cover <- function(las, footprint, cutoff) {
-  # Create circular plots within the polygonal footprint
-  plots <- plot_metrics(las, ~list(buffer_points(., radius = 12.5)), footprint)
-  
-  # Classify points based on first returns above cutoff
-  las$vegetation <- las$Z > cutoff
-  
-  # Compute canopy cover for each circular plot
-  canopy_cover <- plot_metrics(las, ~sum(vegetation) / point_density() * 100, plots)
-  
-  return(canopy_cover)
-}
-
-# Example usage:
-# Assuming fin_catalog is your LAScatalog and footprints is a LAS object
-cutoff <- 2  # adjust the cutoff value as needed
-als_canopy_cover <- calculate_canopy_cover(fin_catalog, footprints, cutoff)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # STATISTICS FUNCTIONS
 
 # GEDI relative height regression function for rh0 - rh100
@@ -669,6 +615,29 @@ rh_linear_regression <- function(row) {
   # Return coefficients and variance as new columns
   return(c(shot_number, coefficients, variance))
 }
+
+
+# Compute the Lin's correlation concordance coefficient (CCC)
+
+calculate_ccc <- function(data, condition = NULL) {
+  if (!is.null(condition)) {
+    data <- data %>% filter(!!rlang::parse_expr(condition))
+  }
+  
+  x <- data$rh97
+  y <- data$rhz97
+  ccc_result <- CCC(x, y, ci = "z-transform", conf.level = 0.95)
+  return(paste("CCC = ", round(ccc_result$rho.c[1], 2)))
+}
+
+
+
+
+
+
+
+
+
 
 
 

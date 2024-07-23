@@ -15,6 +15,7 @@ library(tidyverse)
 library(broom)
 library(purrr)
 
+
 # Processing
 library(lidR)
 library(chewie)
@@ -25,7 +26,8 @@ library(sf)
 library(raster)
 library(terra)
 
-# Tables
+# Stats and tables
+library(DescTools)
 library(gtsummary)
 
 # Visualisation
