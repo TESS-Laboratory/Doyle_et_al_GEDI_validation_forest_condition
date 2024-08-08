@@ -247,10 +247,10 @@ rm(allGEDI2A, allGEDI2B, allGEDI4A, allGEDI2A_no_geom, allGEDI2B_no_geom,
 
 # ------ GEDI regressions NEED WAVEFORMLIDAR ADD KURTOSIS SKEW ETC ---------
 
-# Summarise relative height rh0-100 metrics with linear regression model 
+# Summarise relative height rh0-100 metrics with linear regression model
 # Outputs intercept, slope and variance of the 2A waveform
-# USE THE WAVEFORMLIDAR VIGNETTE TO EXTRACT MORE VARIABLES
 
+# Select only relative height data and unique identifier, transforming dataset
 GEDI2AB_trans <- allGEDI2AB %>%
   as.data.frame() %>%
   select(shot_number, starts_with("rh"))
@@ -258,11 +258,52 @@ GEDI2AB_trans <- allGEDI2AB %>%
 # Apply regression function to each row of the dataframe
 result_df <- apply(GEDI2AB_trans, 1, rh_linear_regression)
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # Convert the result to a dataframe and set column names
 result_df <- t(data.frame(result_df))
 colnames(result_df) <- c("shot_number", "G_intercept", "G_slope", "G_variance")
-result_df <- as.data.frame(result_df) %>%
-  as.numeric(G_intercept, G_slope, G_variance)
+
+result_df <- result_df %>%
+  mutate(G_intercept = as.numeric(G_intercept),
+         G_slope = as.numeric(G_slope),
+         G_variance = as.numeric(G_variance))
+
 
 library(waveformlidar)
 
@@ -305,7 +346,7 @@ sf::st_write(allGEDI2AB4A_reg, "/Users/emilydoyle/Documents/workspace_data/Doyle
 # Tidy the environment
 rm(GEDI2AB_trans, result_df, allGEDI4A_no_geom)
 
-# ------ Extracting ALS metrics within GEDI footprints ------
+# ------ Extracting ALS metrics within GEDI footprints done------
 
 # As the ALS data spans different parts of the Amazon rainforest, they are separated in folders by their
 # CRS. Each ALS folder must therefore extract data from the GEDI footprints separately before being merged.
@@ -317,14 +358,12 @@ CAUT23_20Sfinal <- readLAScatalog('/Users/emilydoyle/Library/CloudStorage/OneDri
 DAAC1821_21Sfinal <- readLAScatalog('/Users/emilydoyle/Library/CloudStorage/OneDrive-UniversityofExeter/LIDAR/DAAC1821_21S/final_norm')
 
 DAAC18_19Sfinal <- filter_als(DAAC18_19Sfinal)
-CAUT23_20Sfinal <- filter_als(CAUT23_20Sfinal1)
+CAUT23_20Sfinal <- filter_als(CAUT23_20Sfinal)
 DAAC1821_21Sfinal <- filter_als(DAAC1821_21Sfinal)
 
 st_crs(DAAC18_19Sfinal) <- 32719
 st_crs(CAUT23_20Sfinal) <- 32720
 st_crs(DAAC1821_21Sfinal) <- 32721
-
-
 
 
 # Filter and reproject the GEDI dataframe to match each CRS catalog
@@ -337,26 +376,26 @@ st_crs(allGEDI2AB_reg_19S) #, allGEDI2AB_reg_20S, allGEDI2AB_reg_21S)
 
 
 # Extracting metrics of ALS within GEDI footprints in the same CRS
+# Converting metrics to CRS (WGS84) associated with GEDI data to extract
+# Write to file - large datasets
 
 DAAC18_19Smetrics <- plot_metrics(DAAC18_19Sfinal, ~lidar_preds(Z, ReturnNumber, min = 0, max = Inf), allGEDI2AB_reg_19S, radius = 12.5)
-CAUT23_20Smetrics <- plot_metrics(CAUT23_20Sfinal, ~lidar_preds(Z, ReturnNumber, min = 0, max = Inf), allGEDI2AB_reg_20S, radius = 12.5)
-DAAC1821_21Smetrics <- plot_metrics(DAAC1821_21Sfinal, ~lidar_preds(Z, ReturnNumber, min = 0, max = Inf), allGEDI2AB_reg_21S, radius = 12.5)
-
-# Merging metrics and using control CRS (WGS84) associated with GEDI data now extraction is complete
-
 DAAC18_19Smetrics <- st_transform(DAAC18_19Smetrics , "EPSG:32643")
-CAUT23_20Smetrics1 <- st_transform(CAUT23_20Smetrics1, "EPSG:32643")
-CAUT23_20Smetrics2 <- st_transform(CAUT23_20Smetrics2, "EPSG:32643")
-DAAC21_21Smetrics <- st_transform(DAAC21_21Smetrics, "EPSG:32643")
+sf::st_write(DAAC18_19Smetrics, "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/DAAC18_19Smetrics.fgb", delete_dsn = TRUE, overwrite = TRUE)
 
-st_crs(DAAC18_19Smetrics)
+CAUT23_20Smetrics <- plot_metrics(CAUT23_20Sfinal1, ~lidar_preds(Z, ReturnNumber, min = 0, max = Inf), allGEDI2AB_reg_20S, radius = 12.5)
+CAUT23_20Smetrics <- st_transform(CAUT23_20Smetrics1, "EPSG:32643")
+sf::st_write(CAUT23_20Smetrics, "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/CAUT23_20Smetrics.fgb", delete_dsn = TRUE, overwrite = TRUE)
 
+DAAC1821_21Smetrics <- plot_metrics(DAAC1821_21Sfinal, ~lidar_preds(Z, ReturnNumber, min = 0, max = Inf), allGEDI2AB_reg_21S, radius = 12.5)
+DAAC1821_21Smetrics <- st_transform(DAAC1821_21Smetrics, "EPSG:32643")
+sf::st_write(DAAC1821_21Smetrics, "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/DAAC1821_21Smetrics.fgb", delete_dsn = TRUE, overwrite = TRUE)
 
 
 # Remove duplicated rows
 DAAC18_19Smetrics <- distinct(DAAC18_19Smetrics)
 CAUT23_20Smetrics <- distinct(CAUT23_20Smetrics)
-DAAC1821_21Smetrics <- distinct(DAAC121_21Smetrics)
+DAAC1821_21Smetrics <- distinct(DAAC1821_21Smetrics)
 
 # Assuming columns are in the same order and just have different names
 colnames(CAUT23_20Smetrics) <- colnames(DAAC18_19Smetrics)
@@ -372,9 +411,11 @@ merged_df <- bind_rows(DAAC18_19Smetrics,
 allGEDI2AB_ALS <- merged_df %>%
   filter(!is.na(rhz95)) %>%
   select(year, solar_elevation, elev_highestreturn, elev_lowestmode,
-         sensitivity, shot_number, degrade_flag, ALS_CRS, rh0, rh10, rh25, rh50, rh75, rh90, rh95, 
+         sensitivity, shot_number, degrade_flag, ALS_CRS, rh5, rh10, rh15, rh20, rh25, rh30,
+         rh35, rh40, rh45, rh50, rh55, rh60, rh65, rh70, rh75, rh80, rh85, rh90, rh95, 
          rh96, rh97, rh98, rh99, rh100, G_intercept, G_slope, G_variance, cover, pai, fhd_normal,
-         pgap_theta, modis_treecover, geometry, rhz10, rhz25, rhz50, rhz75, rhz90, rhz95, 
+         pgap_theta, modis_treecover, geometry, rhz5, rhz10, rhz15, rhz20, rhz25, rhz30, rhz35,
+         rhz40, rhz45, rhz50, rhz55, rhz60, rhz65, rhz70, rhz75, rhz80, rhz85, rhz90, rhz95, 
          rhz96, rhz97, rhz98, rhz99, max, cancov, z_kurt, z_skew)
 
 
@@ -383,7 +424,7 @@ sf::st_write(allGEDI2AB_ALS, "/Users/emilydoyle/Documents/workspace_data/Doyle_e
 
 
 # Tidy the environment
-rm(merged_df, DAAC18_19Smetrics, DAAC21_21Smetrics, CAUT23_20Smetrics, allGEDI2AB_reg_19S, 
+rm(merged_df, DAAC18_19Smetrics, DAAC1821_21Smetrics, CAUT23_20Smetrics, allGEDI2AB_reg_19S, 
     allGEDI2AB_reg_20S, allGEDI2AB_reg_21S, DAAC18_19Sfinal, DAAC1821_21Sfinal, CAUT23_20Sfinal)
 
 # ------- Forest spectral classification done---------
@@ -468,20 +509,20 @@ Burned_list <- list()
 
 # Read each raster file and store them in the list
 # MapBiomas files for Rio Cautario (2023) and DAAC areas (2018/2021) - year corresponds with ALS flights
-for (file in Burned_files) {
+for (file in burned_files) {
   raster_obj <- raster(file)
   Burned_list[[length(Burned_list) + 1]] <- raster_obj
 }
 
 # Merge rasters
-merged_Burned <- do.call(merge, Burned_list)
+merged_burned <- do.call(merge, Burned_list)
 #merged_Burned <- projectRaster(merged_Burned, crs = sr)
 
 # Crop raster
-Burnedforest <- crop(merged_Burned, secondaryforest2024)
+burnedforest <- crop(merged_Burned, secondaryforest2024)
 
 writeRaster(Burnedforest, paste0(output_folder, "/", "MAPBIOMASfire.tif"), overwrite=TRUE)
-Burnedforest <- raster("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/Fire_data/MAPBIOMASfire.tif")
+burnedforest <- raster("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/Fire_data/MAPBIOMASfire.tif")
 
 
 # (3) Validation layer
@@ -515,11 +556,28 @@ rm(secondaryforestraw1, secondaryforestraw2, secondaryforestraw3, secondary_fore
 forest_age <- raster::extract(secondaryforest2024, allGEDI2AB_reg, method='simple')
 allGEDI2AB_reg <- cbind(allGEDI2AB_reg, forest_age)
 
-burn_freq <- terra::extract(Burnedforest, allGEDI2AB_reg, method='simple')
+burn_freq <- terra::extract(burnedforest, allGEDI2AB_reg, method='simple')
 allGEDI2AB_reg <- cbind(allGEDI2AB_reg, burn_freq)
 
 validation <- terra::extract(forestclass, allGEDI2AB_reg, method='simple')
 allGEDI2AB_reg <- cbind(allGEDI2AB_reg, validation)
+
+
+
+# rh, shot number, classification, geometry needed FOR CHRIS
+ 
+forest_age <- raster::extract(secondaryforest2024, GEDI2AB_trans, method='simple')
+GEDI2AB_trans <- rbind(GEDI2AB_trans, forest_age)
+
+burn_freq <- terra::extract(burnedforest, GEDI2AB_trans, method='simple')
+GEDI2AB_trans <- rbind(GEDI2AB_trans, burn_freq)
+
+validation <- terra::extract(forestclass, GEDI2AB_trans, method='simple')
+GEDI2AB_trans <- rbind(GEDI2AB_trans, validation)
+
+
+
+
 
 
 # Segregate the secondary/ Intact forest samples of GEDI footprints
@@ -529,38 +587,38 @@ allGEDI2AB_reg_aged <- allGEDI2AB_reg %>%
   mutate(forest_age = ifelse(is.na(forest_age), 99, forest_age))
 
 # Filter for Intact forest only (values of 99)
-allGEDI2AB_reg_Intact <- filter(allGEDI2AB_reg_aged, forest_age>90)
+allGEDI2AB_reg_intact <- filter(allGEDI2AB_reg_aged, forest_age>90)
 
 # Just degraded forest samples (classified with age by secondary forest raster)
 allGEDI2AB_reg_sec <- filter(allGEDI2AB_reg_aged, forest_age<90)
 
 # Mapview check of data layers
-mapview(allGEDI2AB_reg_sec, zcol = "forest_age") + mapview(secondaryforest2024) + mapview(allGEDI2AB_reg_Intact)
+mapview(allGEDI2AB_reg_sec, zcol = "forest_age") + mapview(secondaryforest2024) + mapview(allGEDI2AB_reg_intact)
 
 
 
-# To create gradient of degradation from Intact to degraded/ recovering forest
+# To create gradient of degradation from intact to degraded/ recovering forest
 # Samples spread across the Amazon sites with various soil/ distance to river/ distance to degradation
 
 # Randomly sample 150 GEDI footprints (~20% of sample size) that meet above criteria and create column highlighting them as =1
-allGEDI2AB_reg_Intact <- allGEDI2AB_reg_Intact %>%
-  mutate(Intact_sample = as.integer(row_number() %in% sample(n(), size = 150)))
+allGEDI2AB_reg_intact <- allGEDI2AB_reg_intact %>%
+  mutate(intact_sample = as.integer(row_number() %in% sample(n(), size = 150)))
 
-# Filter just the Intact GEDI footprint samples
-allGEDI2AB_reg_Intact_sample <- allGEDI2AB_reg_Intact %>%
-  filter(Intact_sample==1) %>%
-  dplyr::select(-Intact_sample) 
+# Filter just the intact GEDI footprint samples
+allGEDI2AB_reg_intact_sample <- allGEDI2AB_reg_intact %>%
+  filter(intact_sample==1) %>%
+  dplyr::select(-intact_sample) 
 
-mapview(allGEDI2AB_reg_Intact_sample)
+mapview(allGEDI2AB_reg_intact_sample)
 
 
 
-# Merge the secondary forest and ALS extent GEDI footprints data frame with new random Intact samples
+# Merge the secondary forest and ALS extent GEDI footprints data frame with new random intact samples
 # Remove the data entries for Rondonia that were classified as non forest in validation dataset
 # Clean dataset and extract degradation values into classified columns using process_GEDI_degradation function
 # For complete gradient of GEDI samples across the site
 
-GEDI2AB <- rbind(allGEDI2AB_reg_sec, allGEDI2AB_reg_Intact_sample)
+GEDI2AB <- rbind(allGEDI2AB_reg_sec, allGEDI2AB_reg_intact_sample)
 
 GEDI2AB <- GEDI2AB %>%
   filter(validation != 0 | is.na(validation)) %>%
@@ -578,6 +636,7 @@ mapview(secondaryforest2024) + mapview(Burnedforest) + mapview(GEDI2AB, zcol = "
 
 # Mutate allGEDI2AB_reg, allGEDI2AB_ALS and allGEDI2AB4A_reg data set to also reflect degradation type
 # Overwrite files for final data frames for analysis/ summaries
+  
 
 allGEDI2AB_reg <- allGEDI2AB_reg_aged %>%
   process_GEDI_degradation()
@@ -586,12 +645,6 @@ allGEDI2AB4A_reg_aged <- allGEDI2AB4A_reg %>%
   mutate(forest_age = ifelse(is.na(forest_age), 99, forest_age))
 
 allGEDI2AB4A_reg <- allGEDI2AB4A_reg_aged %>%
-  process_GEDI_degradation()
-
-allGEDI2AB_ALS_aged <- allGEDI2AB_ALS %>%
-  mutate(forest_age = ifelse(is.na(forest_age), 99, forest_age))
-
-allGEDI2AB_ALS <- allGEDI2AB_ALS_aged %>%
   process_GEDI_degradation()
 
 # Load in 4A files to make comprehensive GEDI data frame also (sample size reduced however)
@@ -606,6 +659,25 @@ GEDI2AB4A <- GEDI2AB %>%
 
 GEDI2AB4A <- GEDI2AB4A %>% 
   drop_na(agbd)
+
+
+
+
+forest_age <- raster::extract(secondaryforest2024, allGEDI2AB_ALS, method='simple')
+allGEDI2AB_ALS <- cbind(allGEDI2AB_ALS, forest_age)
+
+burn_freq <- terra::extract(burnedforest, allGEDI2AB_ALS, method='simple')
+allGEDI2AB_ALS <- cbind(allGEDI2AB_ALS, burn_freq)
+
+validation <- terra::extract(forestclass, allGEDI2AB_ALS, method='simple')
+allGEDI2AB_ALS <- cbind(allGEDI2AB_ALS, validation)
+
+allGEDI2AB_ALS_aged <- allGEDI2AB_ALS %>%
+  mutate(forest_age = ifelse(is.na(forest_age), 99, forest_age))
+
+allGEDI2AB_ALS <- allGEDI2AB_ALS_aged %>%
+  process_GEDI_degradation()
+
 
 # Overwrite final datasets : allGEDI2AB_reg (GEDI2A with regression), 
 #                  allGEDI2AB4A_reg (GEDI2A and 4A with regression), 
@@ -631,10 +703,10 @@ sf::st_write(GEDI2AB4A, "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_
 
 # Tidy environment
 
-rm(allGEDI, allGEDI2AB, allGEDI2AB_reg_aged, allGEDI2AB_reg_Intact, allGEDI2AB_reg_Intact_sample, 
+rm(allGEDI, allGEDI2AB, allGEDI2AB_reg_aged, allGEDI2AB_reg_intact, allGEDI2AB_reg_intact_sample, 
    allGEDI2AB_reg_sec, allGEDI2AB4A_reg_aged, allGEDI2AB_ALS_aged)
                   
-# ------ Statistics CHECK ---------
+# ------ Statistics NEARLY DONE ---------
 
 # Calculate Lin's CCC model for entire GEDI/ ALS dataset at rh97 using calculate_ccc function
 ccc_mod <- calculate_ccc(allGEDI2AB_ALS)
@@ -660,74 +732,8 @@ print(ccc_modburnfreq4_6)
 
 
 # RMSE calculations Inspired by Dorado et al (2021)
-
-# Define linear regression models for different conditions and burn frequencies
-mod <- lm(rhz95 ~ rh95, data = allGEDI2AB_ALS)
-modint <- lm(rhz95[Degradation == 'Intact'] ~ rh95[Degradation == 'Intact'], data = allGEDI2AB_ALS)
-modlog <- lm(rhz95[Degradation == 'Logged'] ~ rh95[Degradation == 'Logged'], data = allGEDI2AB_ALS)
-modburn <- lm(rhz95[Degradation == 'Burned'] ~ rh95[Degradation == 'Burned'], data = allGEDI2AB_ALS)
-modburnfreq1_3 <- lm(rhz95[burn_freq %in% 1:3] ~ rh95[burn_freq %in% 1:3], data = allGEDI2AB_ALS)
-modburnfreq4_6 <- lm(rhz95[burn_freq %in% 4:6] ~ rh95[burn_freq %in% 4:6], data = allGEDI2AB_ALS)
-
-
-# Compute RMSE
-# Difference between rhz and rh predicted values - positive or negative not identified
-# Error as opposed to fitting a modeled error to predict hypothetical error
-rmse <- sqrt(sum((allGEDI2AB_ALS$rhz95 - allGEDI2AB_ALS$rh95)^2, na.rm = TRUE) / length(which(!is.na(allGEDI2AB_ALS$rhz95))))
-rmse_int <- sqrt(sum((allGEDI2AB_ALS$rhz95[which(allGEDI2AB_ALS$Degradation == 'Intact')] - allGEDI2AB_ALS$rh95[which(allGEDI2AB_ALS$Degradation == 'Intact')])^2, na.rm = TRUE) /length(which(!is.na(allGEDI2AB_ALS$rh95[which(allGEDI2AB_ALS$Degradation == 'Intact')]))))
-rmse_log <- sqrt(sum((allGEDI2AB_ALS$rhz95[which(allGEDI2AB_ALS$Degradation == 'Logged')] - allGEDI2AB_ALS$rh95[which(allGEDI2AB_ALS$Degradation == 'Logged')])^2, na.rm = TRUE)/length(which(!is.na(allGEDI2AB_ALS$rh95[which(allGEDI2AB_ALS$Degradation == 'Logged')]))))
-rmse_burn <- sqrt(sum((allGEDI2AB_ALS$rhz95[which(allGEDI2AB_ALS$Degradation == 'Burned')] - allGEDI2AB_ALS$rh95[which(allGEDI2AB_ALS$Degradation == 'Burned')])^2, na.rm = TRUE)/length(which(!is.na(allGEDI2AB_ALS$rh95[which(allGEDI2AB_ALS$Degradation == 'Burned')]))))
-rmse_burnfreq1_3 <- sqrt(sum((allGEDI2AB_ALS$rhz95[which(allGEDI2AB_ALS$burn_freq %in% 1:3)] - allGEDI2AB_ALS$rh95[which(allGEDI2AB_ALS$burn_freq %in% 1:3)])^2, na.rm = TRUE) / length(which(!is.na(allGEDI2AB_ALS$rh95[which(allGEDI2AB_ALS$burn_freq %in% 1:3)]))))
-rmse_burnfreq4_6 <- sqrt(sum((allGEDI2AB_ALS$rhz95[which(allGEDI2AB_ALS$burn_freq %in% 4:6)] - allGEDI2AB_ALS$rh95[which(allGEDI2AB_ALS$burn_freq %in% 4:6)])^2, na.rm = TRUE) / length(which(!is.na(allGEDI2AB_ALS$rh95[which(allGEDI2AB_ALS$burn_freq %in% 4:6)]))))
-
-# Compute mean ALS height
-mean_actual <- sum(mean(allGEDI2AB_ALS$rhz95))
-
-# Compute relative rmse
-rrmse <- sum(rmse/mean_actual)*100
-rrmse_int <- sum(rmse_int/mean_actual)*100
-rrmse_log <- sum(rmse_log/mean_actual)*100
-rrmse_burn <- sum(rmse_burn/mean_actual)*100
-rrmse_burnfreq1_3 <- sum(rmse_burnfreq1_3/mean_actual)*100
-rrmse_burnfreq4_6 <- sum(rmse_burnfreq4_6/mean_actual)*100
-
-
-# Compute bias:  Average difference between rhz and rh (in this case hyp is -0.7m lower than rh)
-bias <- sum((allGEDI2AB_ALS$rhz95 - allGEDI2AB_ALS$rh95), na.rm = TRUE)/length(which(!is.na(allGEDI2AB_ALS$rh95)))
-bias_int <- sum(allGEDI2AB_ALS$rhz95[allGEDI2AB_ALS$Degradation == 'Intact'] - allGEDI2AB_ALS$rh95[allGEDI2AB_ALS$Degradation == 'Intact'], na.rm = TRUE)/length(which(!is.na(allGEDI2AB_ALS$rh95[allGEDI2AB_ALS$Degradation == 'Intact'])))
-bias_log <- sum(allGEDI2AB_ALS$rhz95[allGEDI2AB_ALS$Degradation == 'Logged'] - allGEDI2AB_ALS$rh95[allGEDI2AB_ALS$Degradation == 'Logged'], na.rm = TRUE)/length(which(!is.na(allGEDI2AB_ALS$rh95[allGEDI2AB_ALS$Degradation == 'Logged'])))
-bias_burn <- sum(allGEDI2AB_ALS$rhz95[allGEDI2AB_ALS$Degradation == 'Burned'] - allGEDI2AB_ALS$rh95[allGEDI2AB_ALS$Degradation == 'Burned'], na.rm = TRUE)/length(which(!is.na(allGEDI2AB_ALS$rh95[allGEDI2AB_ALS$Degradation == 'Burned'])))
-bias_burnfreq1_3 <- sum(allGEDI2AB_ALS$rhz95[allGEDI2AB_ALS$burn_freq %in% 1:3] - allGEDI2AB_ALS$rh95[allGEDI2AB_ALS$burn_freq %in% 1:3], na.rm = TRUE) / length(which(!is.na(allGEDI2AB_ALS$rh95[allGEDI2AB_ALS$burn_freq %in% 1:3])))
-bias_burnfreq4_6 <- sum(allGEDI2AB_ALS$rhz95[allGEDI2AB_ALS$burn_freq %in% 4:6] - allGEDI2AB_ALS$rh95[allGEDI2AB_ALS$burn_freq %in% 4:6], na.rm = TRUE) / length(which(!is.na(allGEDI2AB_ALS$rh95[allGEDI2AB_ALS$burn_freq %in% 4:6])))
-
-
-# Compute relative bias : rbias (y = mean height of the hypsometer) % error relative to height of category
-rbias <- sum(bias/mean_actual)*100
-rbias_int <- sum(bias_int/mean_actual)*100
-rbias_log <- sum(bias_log/mean_actual)*100
-rbias_burn <- sum(bias_burn/mean_actual)*100
-rbias_burnfreq1_3 <- sum(bias_burnfreq1_3/mean_actual)*100
-rbias_burnfreq4_6 <- sum(bias_burnfreq4_6/mean_actual)*100
-
-
-# Create a dataframe to store the results
-stats_results <- data.frame(
-  Forest_Condition = c("All", "Intact", "Logged", "Burned", "Burned 1-3", "Burned 4-6"),
-  Pearsons_r = c(coef(mod)[2], coef(modint)[2], coef(modlog)[2], coef(modburn)[2], coef(modburnfreq1_3)[2], coef(modburnfreq4_6)[2]),
-  RMSE_m = c(rmse, rmse_int, rmse_log, rmse_burn, rmse_burnfreq1_3, rmse_burnfreq4_6),
-  rRMSE = c(rrmse, rrmse_int, rrmse_log, rrmse_burn, rrmse_burnfreq1_3, rrmse_burnfreq4_6),
-  Bias_m = c(bias, bias_int, bias_log, bias_burn, bias_burnfreq1_3, bias_burnfreq4_6),
-  Relative_Bias = c(rbias, rbias_int, rbias_log, rbias_burn, rbias_burnfreq1_3, rbias_burnfreq4_6)
-)
-
-
-
-
-
-
-
-
-
+# Functions to calculate RMSE, Bias, fit a linear model for rh97 and do so
+# for given forest conditions. Edit function for different 'rh's'
 
 conditions <- c("All", "Degradation == 'Intact'", "Degradation == 'Logged'", 
                 "burned", "burn_freq %in% 1:3", "burn_freq %in% 4:6")
@@ -745,14 +751,14 @@ mean_actual <- mean(allGEDI2AB_ALS$rhz95, na.rm = TRUE)
 for (i in seq_along(conditions)) {
   condition <- conditions[i]
   if (condition == "All") {
-    data_subset <- allGEDI2AB_ALS
+    burned_subset <- allGEDI2AB_ALS
   } else if (condition == "burned") {
-    data_subset <- handle_burned_condition(allGEDI2AB_ALS)
+    burned_subset <- handle_burned_condition(allGEDI2AB_ALS)
   } else {
-    data_subset <- allGEDI2AB_ALS %>% filter(!!rlang::parse_expr(condition))
+    burned_subset <- allGEDI2AB_ALS %>% filter(!!rlang::parse_expr(condition))
   }
-  pearsons_r[i] <- calculate_coef(data_subset)
-  stats <- calculate_stats(data_subset)
+  pearsons_r[i] <- calculate_coef(burned_subset)
+  stats <- calculate_stats(burned_subset)
   rmse_m[i] <- stats$rmse
   rrmse[i] <- (stats$rmse / mean_actual) * 100
   bias_m[i] <- stats$bias
@@ -774,22 +780,63 @@ print(stats_results)
 
 
 
+# Calculating correlation along the waveforms for given degradation types
+
+# Function to calculate Pearson's r for a given condition and rh-rhz pair
+calculate_pearson <- function(data, condition, rh_col, rhz_col) {
+  if (!is.null(condition) && condition != "All") {
+    data <- data %>% filter(!!rlang::parse_expr(condition))
+  }
+  cor(data[[rh_col]], data[[rhz_col]], use = "complete.obs")
+}
+
+# Define the conditions
+conditions <- c("All", "Degradation == 'Intact'", "Degradation == 'Logged'", 
+                "Degradation == 'Burned'", "burn_freq %in% 1:3", "burn_freq %in% 4:6")
+
+# Define the rh and rhz columns at every 5 intervals
+rh_columns <- paste0("rh", seq(5, 95, by = 5))
+rhz_columns <- paste0("rhz", seq(5, 95, by = 5))
+
+# Initialize a list to store results
+results_list <- list()
+
+# Loop through each condition and calculate Pearson's r for each rh-rhz pair
+for (condition in conditions) {
+  for (i in seq_along(rh_columns)) {
+    rh_col <- rh_columns[i]
+    rhz_col <- rhz_columns[i]
+    pearson_r <- calculate_pearson(allGEDI2AB_ALS, condition, rh_col, rhz_col)
+    results_list <- append(results_list, list(data.frame(
+      Condition = condition,
+      Pair = paste(rh_col, rhz_col, sep = "-"),
+      Pearsons_r = pearson_r
+    )))
+  }
+}
+
+# Combine all results into a single dataframe
+pearsons_results <- do.call(rbind, results_list)
+
+pearsons_results <- pearsons_results %>%
+  mutate(Condition = case_when(
+    Condition == "All" ~ "All",
+    Condition == "Degradation == 'Intact'" ~ "Intact",
+    Condition == "Degradation == 'Logged'" ~ "Logged",
+    Condition == "Degradation == 'Burned'" ~ "Burned",
+    Condition == "burn_freq %in% 1:3" ~ "Burned 1-3",
+    Condition == "burn_freq %in% 4:6" ~ "Burned 4-6",
+    TRUE ~ NA_character_)) %>%
+  mutate(Pair = str_extract(Pair, "\\d+"))
+
+print(pearsons_results)
 
 
 
 
 
 
-
-
-
-
-
-
-
-
-
-
+# -------- Principle Component Analysis ---------
 
 
 # TESTING FOR THE PCA
@@ -797,20 +844,20 @@ print(stats_results)
 
 # Eventually need this to inlcude all the ALS waveform stats, GEDI rh intervals
 # canopy cover metrics etc
-allGEDI2APCA <- GEDI2AB_ALS %>%
+allGEDI2APCA <- allGEDI2AB_ALS %>%
   mutate(Degradation_numeric = case_when(
     Degradation == 'Burned' ~ "2",
     Degradation == 'Logged' ~ "1",
     Degradation == 'Intact' ~ "0",
     TRUE ~ NA_character_)) %>% 
-      select(-solar_elevation, -lat_lowestmode, -lon_lowestmode, 
+  select(-solar_elevation, -lat_lowestmode, -lon_lowestmode, 
          -shot_number, -elev_highestreturn, -elev_lowestmode, 
          -sensitivity, -degrade_flag, -geometry, -Age_category,
          -Age_category2, -year, -ALS_CRS, -Degradation2, 
          -Degradation, -rh0) #- forest_age, -burn_freq)
 
 allGEDI2APCA <- st_drop_geometry(allGEDI2APCA)
-         
+
 allGEDI2APCA$G_intercept <- as.numeric(allGEDI2APCA$G_intercept)
 allGEDI2APCA$G_slope <- as.numeric(allGEDI2APCA$G_slope)
 allGEDI2APCA$G_variance <- as.numeric(allGEDI2APCA$G_variance)
@@ -945,7 +992,7 @@ plot(pca_Intact, main = "PCA for Intact Data")
 
 # ------- Graphs/ visulisations CHECK-------
 
-
+## LOOK AT THIS FOR BURNED CLASSIFICATION
 allGEDI2AB_ALS <- allGEDI2AB_ALS %>%
   mutate(Degradation = case_when(
     burn_freq == 2 ~ "Burned",
@@ -955,9 +1002,204 @@ allGEDI2AB_ALS <- allGEDI2AB_ALS %>%
     forst_g > 50 ~ "Intact",
     TRUE ~ NA_character_))
 
+
+
+## PANEL 1 - GEDI validation / correspondance
+
+# Plot 1 - Correspondance between GEDI and ALS
+# Filter the reshaped height data to keep only the pairs of ALS and GEDI columns
+allGEDI2AB_ALS_height_long <- allGEDI2AB_ALS %>%
+  pivot_longer(cols = starts_with("rhz"), names_to = "ALS", values_to = "ALS_value") %>%
+  pivot_longer(cols = starts_with("rh"), names_to = "GEDI", values_to = "GEDI_value") %>%
+  filter((ALS == "rhz25" & GEDI == "rh25") | 
+           (ALS == "rhz50" & GEDI == "rh50") |
+           (ALS == "rhz75" & GEDI == "rh75") |
+           (ALS == "rhz97" & GEDI == "rh97"))
+
+# Calculate correlation and create annotation text for height metrics
+correlations_height <- allGEDI2AB_ALS_height_long %>%
+  group_by(ALS, GEDI) %>%
+  summarise(correlation = cor(ALS_value, GEDI_value, use = "complete.obs")) %>%
+  mutate(annotation = paste0("R² = ", round(correlation^2, 2)))
+
+panel_plot1 <- allGEDI2AB_ALS_height_long %>%
+  ggplot(aes(x = ALS_value, y = GEDI_value, color = Degradation)) +
+  geom_point(size = 0.5) +
+  geom_text(data = correlations_height, aes(x = Inf, y = Inf, label = annotation), hjust = 1.1, vjust = 2, size = 3, color = "black") +
+  labs(title = "Correspondence between ALS and GEDI", x = "ALS", y = "GEDI") +
+  theme_bw() +
+  scale_colour_manual(values = c("orange", "red", "darkgreen", "brown")) +
+  facet_wrap(~ ALS, scales = "free") +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    strip.background = element_blank(),
+    strip.text = element_text(face = "bold")
+  )
+# Print the panel plot
+print(panel_plot1)
+
+
+
+# Plot 2 - Correspondance between canopy heigths
+# Reshape the data for canopy cover metrics
+allGEDI2AB_ALS_cover_long <- allGEDI2AB_ALS %>%
+  pivot_longer(cols = starts_with("can"), names_to = "ALS", values_to = "ALS_value") %>%
+  pivot_longer(cols = "cover", names_to = "GEDI", values_to = "GEDI_value") %>%
+  filter(ALS == "cancov")
+
+# Convert columns to character type to avoid type mismatch
+allGEDI2AB_ALS_cover_long <- allGEDI2AB_ALS_cover_long %>%
+  mutate(across(c(ALS, GEDI), as.character))
+
+# Calculate correlation and create annotation text for canopy cover
+correlations_cover <- allGEDI2AB_ALS_cover_long %>%
+  group_by(GEDI) %>%
+  summarise(correlation = cor(ALS_value, GEDI_value, use = "complete.obs")) %>%
+  mutate(annotation = paste0("R² = ", round(correlation^2, 2)))
+
+# Create the panel plot
+panel_plot2 <- allGEDI2AB_ALS_cover_long %>%
+  ggplot(aes(x = ALS_value, y = GEDI_value, color = Degradation)) +
+  geom_point(size = 0.5) +  # Adjust the size of the points here
+  geom_text(data = correlations_cover, aes(x = Inf, y = Inf, label = annotation), hjust = 1.1, vjust = 2, size = 3, color = "black") +
+  labs(title = "GEDI vs ALS Canopy Cover", x = "ALS Canopy Cover", y = "GEDI Cover") +
+  theme_bw() +
+  scale_colour_manual(values = c("orange", "red", "darkgreen", "brown")) +
+  facet_wrap(~ GEDI, scales = "free") +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),  # Center the title and make it bold
+    strip.background = element_blank(),  # Remove grey background from facet labels
+    strip.text = element_text(face = "bold")  # Make facet labels bold
+  )
+
+# Print the panel plot
+print(panel_plot2)
+
+
+# Plot 3 - Correspondance for degraadtion types
+# Calculate correlation and create annotation text for degradation types at rh97
+correlations_degradation <- allGEDI2AB_ALS %>%
+  filter(Degradation %in% c("Intact", "Logged", "Burned", "Burned 3+")) %>%
+  group_by(Degradation) %>%
+  summarise(correlation = cor(rhz97, rh97, use = "complete.obs")) %>%
+  mutate(annotation = paste0("R² = ", round(correlation^2, 2)))
+
+panel_plot3 <- allGEDI2AB_ALS %>%
+  filter(Degradation %in% c("Intact", "Logged", "Burned", "Burned 3+")) %>%
+  ggplot(aes(x = rhz97, y = rh97, color = Degradation)) +
+  geom_point(size = 0.5) +
+  geom_text(data = correlations_degradation, aes(x = Inf, y = Inf, label = annotation), hjust = 1.1, vjust = 2, size = 3, color = "black") +
+  labs(title = "Correspondence between ALS and GEDI at rh97", x = "ALS (rhz97)", y = "GEDI (rh97)") +
+  theme_bw() +
+  scale_colour_manual(values = c("orange", "red", "darkgreen", "brown")) +
+  facet_wrap(~ Degradation, scales = "free") +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    strip.background = element_blank(),
+    strip.text = element_text(face = "bold")
+  )
+
+# Print the panel plot
+print(panel_plot3)
+
+
+# Plot 4 - Correlations for complete waveform for each degradation type
+# Ensure the Pair column is ordered correctly
+pearsons_results$Pair <- factor(pearsons_results$Pair, levels = as.character(seq(5, 95, 5)))
+
+# Filter the dataset to include only the specified conditions
+pearsons_results_data_filtered <- pearsons_results %>%
+  filter(Condition %in% c("Intact", "Logged", "Burned 1-3", "Burned 4-6"))
+
+# Find the maximum Pearson's r value for each condition
+max_pearsons_r <- pearsons_results_data_filtered %>%
+  group_by(Condition) %>%
+  slice_max(order_by = Pearsons_r, n = 1)
+
+# Create the panel plot
+panel_plot4 <- pearsons_results_data_filtered %>%
+  ggplot(aes(x = Pair, y = Pearsons_r, color = Condition)) +
+  geom_point(size = 1) +  # Points for each Pearson's r value
+  geom_line(aes(group = Condition), size = 0.5) +  # Line connecting the points for each condition
+  geom_point(data = max_pearsons_r, aes(x = Pair, y = Pearsons_r), size = 4, shape = 18, show.legend = FALSE) +  # Highlight the max points
+  labs(title = "GEDI vs ALS waveform", x = "Pair (rh-rhz)", y = "Pearson's r") +
+  theme_bw() +
+  scale_color_manual(values = c("Intact" = "darkgreen", "Logged" = "brown", "Burned 1-3" = "orange", "Burned 4-6" = "red")) +
+  facet_wrap(~ Condition, scales = "free_y") +  # Separate panels for each degradation type
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),  # Center and bold the title
+    strip.background = element_blank(),  # Remove grey background from facet labels
+    strip.text = element_text(face = "bold"),  # Make facet labels bold
+    axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1, face = "italic")  # Rotate x-axis labels for better readability and make them italic
+   )
+
+# Print the panel plot
+print(panel_plot4)
+
+
+# Combine the plots using the patchwork package
+combined_plot <- (panel_plot1 + panel_plot2) / (panel_plot3 + panel_plot4)
+
+# Print the combined plot
+print(combined_plot)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## PANEL 2 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # Violin plot for GEDI top height across degradation
-GEDIrh99_degradation <- allGEDI2AB_ALS %>%
-  ggplot(aes(x = Degradation, y = rh99, fill = Degradation)) +
+GEDIrh99_degradation <- GEDI2AB %>%
+  ggplot(aes(x = Degradation, y = rh97, fill = Degradation)) +
   geom_violin(color = "black", alpha = 0.8) +
   geom_jitter(width = 0.1, size = 1, alpha = 0.5) +
   labs(title = "GEDI Canopy height with various degradation type", x = "Degradation type", y = "Relative height top of canopy (m) (rh99)") +
@@ -970,7 +1212,7 @@ GEDIrh99_degradation <- allGEDI2AB_ALS %>%
 plot(GEDIrh99_degradation)
 
 # Violin plot for GEDI top height across degradation
-GEDIcover_violin <- allGEDI_gradient %>%
+GEDIcover_violin <- GEDI2AB %>%
   ggplot(aes(x = Degradation, y = cover, fill = Degradation)) +
   geom_violin(color = "black", alpha = 0.8) +
   geom_jitter(width = 0.1, size = 1, alpha = 0.5) +
@@ -989,9 +1231,9 @@ plot(GEDIcover_violin)
 
 # GEDI DEGRADATION AGE
 age_order <- c("<6", "6-15", "15-25", "25-40", ">40")
-GEDI2AB_ALS <- mutate(GEDI2AB_ALS, Age_category = factor(Age_category, levels = age_order))
+allGEDI2AB_ALS <- mutate(allGEDI2AB_ALS, Age_category = factor(Age_category, levels = age_order))
 
-GEDIheight_age <- GEDI2AB_ALS %>%
+GEDIheight_age <- allGEDI2AB_ALS %>%
   ggplot() +
   geom_point(aes(x = Age_category, y = rh99, color = Degradation2)) +
   labs(title = "GEDI canopy height by degradation", x = "Forest age", y = "Canopy height (m)") +
@@ -1007,9 +1249,9 @@ plot(GEDIheight_age)
 # Define breaks for age categories
 breaks <- c(0, 6, 15, 25, 40, 99)
 labels <- c("<6", "6-15", "15-25", "25-40", "<40")
-allGEDI_gradient <- mutate(allGEDI_gradient, Age_category = cut(forest_age, breaks = breaks, labels = labels))
+GEDI2AB <- mutate(GEDI2AB, Age_category = cut(forest_age, breaks = breaks, labels = labels))
 
-GEDIcover_age <- allGEDI_gradient %>%
+GEDIcover_age <- GEDI2AB %>%
   ggplot() +
   geom_point(aes(x = Age_category, y = cover, color = Degradation)) +
   labs(title = "GEDI canopy cover", x = "Forest age", y = "Canopy cover (%)") +
@@ -1023,9 +1265,9 @@ plot(GEDIcover_age)
 # Define breaks for age categories
 breaks <- c(0, 6, 15, 25, 40, 99)
 labels <- c("<6", "6-15", "15-25", "25-40", "<40")
-allGEDI_gradient <- mutate(allGEDI_gradient, Age_category = cut(forest_age, breaks = breaks, labels = labels))
+GEDI2AB <- mutate(GEDI2AB, Age_category = cut(forest_age, breaks = breaks, labels = labels))
 
-GEDIcover_degradation <- allGEDI_gradient %>%
+GEDIcover_degradation <- GEDI2AB %>%
   ggplot() +
   geom_point(aes(x = Degradation, y = cover, color = Degradation)) +
   labs(title = "GEDI canopy cover", x = "Forest age", y = "Canopy cover (%)") +
@@ -1038,9 +1280,9 @@ plot(GEDIcover_degradation)
 # Define breaks for age categories
 breaks <- c(0, 6, 15, 25, 40, 99)
 labels <- c("<6", "6-15", "15-25", "25-40", "<40")
-allGEDI_gradient <- mutate(allGEDI_gradient, Age_category = cut(forest_age, breaks = breaks, labels = labels))
+GEDI2AB <- mutate(GEDI2AB, Age_category = cut(forest_age, breaks = breaks, labels = labels))
 
-GEDIcover_agbd <- allGEDI_gradient %>%
+GEDIcover_agbd <- GEDI2AB4A %>%
   ggplot() +
   geom_point(aes(x = Age_category, y = cover, color = agbd)) +
   labs(title = "GEDI canopy cover", x = "Forest age", y = "Canopy cover (%)") +
@@ -1051,53 +1293,14 @@ plot(GEDIcover_agbd)
 
 
 
-# Graph for correspondence between ALS95 and GEDI95
-ALSGEDIrh95 <- allGEDI2AB_ALS %>%
-  ggplot(aes(x=rhz95, y=rh95, color=Degradation)) +
-  geom_point() +
-  labs(title = "Correspondance between ALS and GEDI 95%", x = "ALS", y = "GEDI") +
-  theme_bw() +
-  scale_colour_manual(values = c("orange", "red", "chartreuse3","deepskyblue" ))
-plot(ALSGEDIrh95)
-
-
-# Graph for correspondence between ALS95 and GEDI95
-ALSGEDIrh75 <- allGEDI2AB_ALS %>%
-  ggplot(aes(x=rhz75, y=rh75, color=Degradation)) +
-  geom_point() +
-  labs(title = "Correspondance between ALS and GEDI 75%", x = "ALS", y = "GEDI") +
-  theme_bw() 
-#scale_colour_manual(values = c("darkorange", "darkolivegreen3", "Black"))
-plot(ALSGEDIrh75)
-
-# Graph for correspondence between ALS95 and GEDI95
-ALSGEDIrh95 <- allGEDI2AB_ALS %>%
-  ggplot(aes(x=rhz95, y=rh95, color=Degradation)) +
-  geom_point() +
-  labs(title = "Correspondance between ALS and GEDI 95%", x = "ALS", y = "GEDI") +
-  theme_bw() 
-#scale_colour_manual(values = c("darkorange", "darkolivegreen3", "Black"))
-plot(ALSGEDIrh95)
-
-
-# Graph for correspondence between ALS95 and GEDI95
-ALSGEDIrh50 <- allGEDI2AB_ALS %>%
-  ggplot(aes(x=rhz75, y=rh50, color=Degradation)) +
-  geom_point() +
-  labs(title = "Correspondance between ALS and GEDI 50%", x = "ALS", y = "GEDI") +
-  theme_bw() 
-#scale_colour_manual(values = c("darkorange", "darkolivegreen3", "Black"))
-plot(ALSGEDIrh50)
-
-
 
 # NEED TO LOOK AT PLOTTING THE VARIANCES
 
-GEDI2AB_ALS$G_slope <- as.numeric(GEDI2AB_ALS$G_slope)
-GEDI2AB_ALS$G_variance <- as.numeric(GEDI2AB_ALS$G_variance)
-GEDI2AB_ALS$G_intercept <- as.numeric(GEDI2AB_ALS$G_intercept)
+GEDI2AB$G_slope <- as.numeric(GEDI2AB$G_slope)
+GEDI2AB$G_variance <- as.numeric(GEDI2AB$G_variance)
+GEDI2AB$G_intercept <- as.numeric(GEDI2AB$G_intercept)
 
-GEDI_slope <- GEDI2AB_ALS %>%
+GEDI_slope <- GEDI2AB %>%
   ggplot(aes(x=Degradation, y=G_variance, color=Degradation)) +
   geom_point() +
   labs(title = "G_slope", x = "height", y = "G_slope") +
@@ -1106,7 +1309,7 @@ GEDI_slope <- GEDI2AB_ALS %>%
 plot(GEDI_slope)
 
 # Violin plot for GEDI top height across degradation
-GEDI_slope <- GEDI2AB_ALS %>%
+GEDI_slope <- GEDI2AB %>%
   ggplot(aes(x=Degradation, y=G_slope, fill=Degradation)) +
   geom_violin(color = "black", alpha = 0.8) +
   geom_jitter(width = 0.1, size = 1, alpha = 0.5) +
@@ -1121,10 +1324,10 @@ plot(GEDI_slope)
 
 # Violin plot for GEDI top height across degradation
 
-GEDI2AB_ALStest <- GEDI2AB_ALS %>%
-  mutate(status = ifelse(Degradation == "Logged" | Degradation == "Burned", "degraded", "Intact"))
+allGEDI2AB_ALStest <- allGEDI2AB_ALS %>%
+  mutate(status = ifelse(Degradation == "Logged" | Degradation == "Burned", "Degraded", "Intact"))
 
-GEDI_condition_test <- GEDI2AB_ALStest %>%
+GEDI_condition_test <- allGEDI2AB_ALStest %>%
   ggplot(aes(x=status, y=G_slope, fill=status)) +
   geom_violin(color = "black", alpha = 0.8) +
   geom_jitter(width = 0.1, size = 1, alpha = 0.5) +
@@ -1139,6 +1342,10 @@ plot(GEDI_condition_test)
 
 
 
+
+
+
+# ------ Extras? --------
 
 
 
