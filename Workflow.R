@@ -549,7 +549,9 @@ rm(secondaryforestraw1, secondaryforestraw2, secondaryforestraw3, secondary_fore
    merged_Burned, rcl)
 
 
-# ----------- GEDI classification extraction done --------------
+# ----------- GEDI classification extraction CHECK --------------
+
+#SHOULD THIS BE DONE WITH ALLGEDI_ALS INSTEAD OF REG OR CAN I MERGE THEM AFTER ANYWAY
 
 # Extract values for forest age, burn frequency #and ALS extent#, binding new columns to GEDI data frame
 
@@ -561,22 +563,6 @@ allGEDI2AB_reg <- cbind(allGEDI2AB_reg, burn_freq)
 
 validation <- terra::extract(forestclass, allGEDI2AB_reg, method='simple')
 allGEDI2AB_reg <- cbind(allGEDI2AB_reg, validation)
-
-
-
-# rh, shot number, classification, geometry needed FOR CHRIS
- 
-forest_age <- raster::extract(secondaryforest2024, GEDI2AB_trans, method='simple')
-GEDI2AB_trans <- rbind(GEDI2AB_trans, forest_age)
-
-burn_freq <- terra::extract(burnedforest, GEDI2AB_trans, method='simple')
-GEDI2AB_trans <- rbind(GEDI2AB_trans, burn_freq)
-
-validation <- terra::extract(forestclass, GEDI2AB_trans, method='simple')
-GEDI2AB_trans <- rbind(GEDI2AB_trans, validation)
-
-
-
 
 
 
@@ -622,6 +608,7 @@ GEDI2AB <- rbind(allGEDI2AB_reg_sec, allGEDI2AB_reg_intact_sample)
 
 GEDI2AB <- GEDI2AB %>%
   filter(validation != 0 | is.na(validation)) %>%
+  filter(rh100 <= 50) %>%    #filter for anomalous results (birdshot)
   process_GEDI_degradation()
 
 
@@ -630,14 +617,13 @@ sf::st_write(GEDI2AB, "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GE
 
 mapview(secondaryforest2024) + mapview(Burnedforest) + mapview(GEDI2AB, zcol = "Degradation")
 
-
+# REVIEW THIS 
 # Repeat degradation extraction for all datasets
 {
 
 # Mutate allGEDI2AB_reg, allGEDI2AB_ALS and allGEDI2AB4A_reg data set to also reflect degradation type
 # Overwrite files for final data frames for analysis/ summaries
   
-
 allGEDI2AB_reg <- allGEDI2AB_reg_aged %>%
   process_GEDI_degradation()
 
@@ -662,7 +648,6 @@ GEDI2AB4A <- GEDI2AB4A %>%
 
 
 
-
 forest_age <- raster::extract(secondaryforest2024, allGEDI2AB_ALS, method='simple')
 allGEDI2AB_ALS <- cbind(allGEDI2AB_ALS, forest_age)
 
@@ -678,6 +663,8 @@ allGEDI2AB_ALS_aged <- allGEDI2AB_ALS %>%
 allGEDI2AB_ALS <- allGEDI2AB_ALS_aged %>%
   process_GEDI_degradation()
 
+allGEDI2AB_ALS <- allGEDI2AB_ALS %>%
+  select(-forest_age.1, -burn_freq.1)
 
 # Overwrite final datasets : allGEDI2AB_reg (GEDI2A with regression), 
 #                  allGEDI2AB4A_reg (GEDI2A and 4A with regression), 
@@ -992,18 +979,8 @@ plot(pca_Intact, main = "PCA for Intact Data")
 
 # ------- Graphs/ visulisations CHECK-------
 
-## LOOK AT THIS FOR BURNED CLASSIFICATION
-allGEDI2AB_ALS <- allGEDI2AB_ALS %>%
-  mutate(Degradation = case_when(
-    burn_freq == 2 ~ "Burned",
-    burn_freq == 1 ~ "Burned",
-    burn_freq > 2 ~ "Burned 3+",
-    forst_g < 50 ~ "Logged",
-    forst_g > 50 ~ "Intact",
-    TRUE ~ NA_character_))
 
-
-
+# PANEL ONE DONE - JUST NEED TO REMOVE CAPTIONS
 ## PANEL 1 - GEDI validation / correspondance
 
 # Plot 1 - Correspondance between GEDI and ALS
@@ -1079,13 +1056,13 @@ print(panel_plot2)
 # Plot 3 - Correspondance for degraadtion types
 # Calculate correlation and create annotation text for degradation types at rh97
 correlations_degradation <- allGEDI2AB_ALS %>%
-  filter(Degradation %in% c("Intact", "Logged", "Burned", "Burned 3+")) %>%
+  filter(Degradation %in% c("Intact", "Logged", "Burned 1-3", "Burned 4+")) %>%
   group_by(Degradation) %>%
   summarise(correlation = cor(rhz97, rh97, use = "complete.obs")) %>%
   mutate(annotation = paste0("R² = ", round(correlation^2, 2)))
 
 panel_plot3 <- allGEDI2AB_ALS %>%
-  filter(Degradation %in% c("Intact", "Logged", "Burned", "Burned 3+")) %>%
+  filter(Degradation %in% c("Intact", "Logged", "Burned 1-3", "Burned 4+")) %>%
   ggplot(aes(x = rhz97, y = rh97, color = Degradation)) +
   geom_point(size = 0.5) +
   geom_text(data = correlations_degradation, aes(x = Inf, y = Inf, label = annotation), hjust = 1.1, vjust = 2, size = 3, color = "black") +
@@ -1148,29 +1125,72 @@ print(combined_plot)
 
 
 
-
-
-
-
-
-
-
-
 ## PANEL 2 
 
+# Ordering of age within plots
+age_order <- c("<7", "7-15", "15-25", "25-40", ">40")
+age_order2 <- c("<10", "10-20", "20-30", "30-40", ">40")
+allGEDI2AB_ALS <- mutate(allGEDI2AB_ALS, Age_category = factor(Age_category, levels = age_order))
+allGEDI2AB_ALS <- mutate(allGEDI2AB_ALS, Age_category2 = factor(Age_category2, levels = age_order2))
+
+
+
+# Plot 1 - GEDI height/ age/ degradation
+GEDIheight_age <- GEDI2AB %>%
+  ggplot() +
+  geom_point(aes(x = Age_category, y = rh97, color = Degradation), size = 1, position = position_jitter(width = 0.3)) +
+  labs(title = "GEDI Canopy Height by Degradation", x = "Forest Age", y = "Canopy Height (m)") +
+  theme_bw() +
+  scale_colour_manual(values = c("orange", "red", "darkgreen", "brown")) +
+  scale_fill_manual(values = c("orange", "red", "darkgreen", "brown"))
+
+plot(GEDIheight_age)
+
+# WITH IMAGE BACKGROUND
+# Load your image
+background_image <- jpeg::readJPEG("/Users/emilydoyle/Desktop/vector-tropical-rainforest.jpeg")  # Use readPNG() if it's a PNG file
+
+# Create the plot
+GEDIheight_age <- GEDI2AB %>%
+  ggplot() +
+  annotation_custom(rasterGrob(background_image, width = unit(1,"npc"), height = unit(1,"npc"), 
+                               gp = gpar(alpha = 0.5))) +  # Add background image with opacity
+  geom_point(aes(x = Age_category, y = rh97, color = Degradation), size = 1, position = position_jitter(width = 0.3)) +
+  labs(title = "GEDI Canopy Height by Degradation", x = "Forest Age", y = "Canopy Height (m)") +
+  theme_bw() +
+  ylim(0, 45) +  # Set the y-axis limit
+  scale_colour_manual(values = c("orange", "red", "darkgreen", "brown")) +
+  scale_fill_manual(values = c("orange", "red", "darkgreen", "brown"))
+
+# Display the plot
+plot(GEDIheight_age)
 
 
 
 
 
+# GEDI CANOPY COVER AND AGE
+# Define breaks for age categories
+
+GEDIcover_age <- GEDI2AB %>%
+  ggplot() +
+  geom_point(aes(x = Age_category, y = cover, color = Degradation), size = 1, alpha = 0.9, position = position_jitter(width = 0.3)) +
+  labs(title = "GEDI canopy cover", x = "Forest age", y = "Canopy cover (%)") +
+  scale_colour_manual(values = c("orange", "red", "darkgreen", "brown")) +
+  scale_fill_manual(values = c("orange", "red", "darkgreen", "brown")) +
+  theme_bw()
+
+plot(GEDIcover_age)
 
 
+GEDIcover_agbd <- GEDI2AB4A %>%
+  ggplot() +
+  geom_point(aes(x = Age_category, y = cover, color = agbd), size = 1, alpha = 0.9, position = position_jitter(width = 0.3)) +
+  labs(title = "GEDI canopy cover", x = "Forest age", y = "Canopy cover (%)") +
+  scale_color_continuous(name = "AGBD", low = "lightblue", high = "darkblue") +  # Set color for the legend bar
+  theme_bw()
 
-
-
-
-
-
+plot(GEDIcover_agbd)
 
 
 
@@ -1229,36 +1249,11 @@ plot(GEDIcover_violin)
 # Nice to have one for canopy cover / AGB too
 
 
-# GEDI DEGRADATION AGE
-age_order <- c("<6", "6-15", "15-25", "25-40", ">40")
-allGEDI2AB_ALS <- mutate(allGEDI2AB_ALS, Age_category = factor(Age_category, levels = age_order))
-
-GEDIheight_age <- allGEDI2AB_ALS %>%
-  ggplot() +
-  geom_point(aes(x = Age_category, y = rh99, color = Degradation2)) +
-  labs(title = "GEDI canopy height by degradation", x = "Forest age", y = "Canopy height (m)") +
-  theme_bw() +
-  scale_colour_manual(values = c("orange", "red", "chartreuse3","deepskyblue" ))
-
-plot(GEDIheight_age)
 
 
 
 
-# GEDI CANOPY COVER AND AGE
-# Define breaks for age categories
-breaks <- c(0, 6, 15, 25, 40, 99)
-labels <- c("<6", "6-15", "15-25", "25-40", "<40")
-GEDI2AB <- mutate(GEDI2AB, Age_category = cut(forest_age, breaks = breaks, labels = labels))
 
-GEDIcover_age <- GEDI2AB %>%
-  ggplot() +
-  geom_point(aes(x = Age_category, y = cover, color = Degradation)) +
-  labs(title = "GEDI canopy cover", x = "Forest age", y = "Canopy cover (%)") +
-  #scale_color_continuous(name = "AGBD", low = "greenyellow", high = "darkgreen") +  # Set color for the legend bar
-  theme_bw()
-
-plot(GEDIcover_age)
 
 
 # GEDI CANOPY COVER AND DEGRADATION
