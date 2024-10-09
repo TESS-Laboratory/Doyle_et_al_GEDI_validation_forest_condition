@@ -148,7 +148,9 @@ gedi2A_batch_download <- function(poly_folder_path, start_date, end_date, fgb_ou
       next  # Skip to the next iteration if no GEDI files are found
     }
     
-    gedi2a_sf <- grab_gedi(gedi2a_search) |>
+    gedi2a_sf <- grab_gedi(gedi2a_search, add_vars = list(energy_total = "/energy_total",
+                                                          num_detmodes = "/num_detectedmodes",
+                                                          rx_energy = "/rx_energy")) |>
       filter(
         quality_flag == 1,
         degrade_flag == 0
@@ -164,7 +166,7 @@ gedi2A_batch_download <- function(poly_folder_path, start_date, end_date, fgb_ou
         rh55, rh56, rh57, rh58, rh59, rh60, rh61, rh62, rh63, rh64, rh65, rh66, rh67, rh68, rh69, 
         rh70, rh71, rh72, rh73, rh74, rh75, rh76, rh77, rh78, rh79, rh80, rh81, rh82, rh83, rh84, 
         rh85, rh86, rh87, rh88, rh89, rh90, rh91, rh92, rh93, rh94, rh95, rh96, rh97, rh98, rh99, 
-        rh100, sensitivity, shot_number, degrade_flag
+        rh100, sensitivity, shot_number, degrade_flag, energy_total, num_detmodes, rx_energy
       ) |>
       mutate(shot_number=as.character(shot_number)) |>
              #beam=as.character(beam)) 
@@ -374,20 +376,19 @@ filter_reproj_GEDI <- function(data, als_crs_value, epsg_code) {
   return(transformed_data)
 }
 
-
-
-# Cleaning/ addng extacted degradation type to datasets
-
+# Cleaning/ adding extracted degradation type to datasets
 process_GEDI_degradation <- function(data) {
   data %>%
     mutate(Degradation = case_when(
-      burn_freq == 2 ~ "Burned",
-      burn_freq == 1 ~ "Burned",
-      burn_freq > 2 ~ "Burned 3+",
+      burn_freq == 1 ~ "Burned 1-3",
+      burn_freq == 2 ~ "Burned 1-3",
+      burn_freq == 3 ~ "Burned 1-3",
+      burn_freq > 3 ~ "Burned 4+",
       forest_age < 50 ~ "Logged",
       forest_age >= 50 ~ "Intact",
       TRUE ~ NA_character_
     )) %>%
+    mutate
     mutate(Age_category = cut(forest_age, breaks = c(-Inf, 6, 15, 25, 40, Inf), 
                               labels = c("<7", "7-15", "15-25", "25-40", ">40"))) %>%
     mutate(Age_category2 = cut(forest_age, breaks = c(-Inf, 10, 20, 30, 40, Inf), 
@@ -396,12 +397,142 @@ process_GEDI_degradation <- function(data) {
 
 
 
+# WAVEFORM STATISTICS
+
+# Simple summary statistics for rh waveforms and skew/ kurtosis
+wv_summary_stats <- function(row) {
+  # Extract shot_number from the row
+  shot_number <- row[1]
+  
+  # Extract the RH values
+  rh_values <- as.numeric(row[-1])  # Exclude the shot_number
+  
+  # Calculate summary statistics
+  mean_val <- mean(rh_values)
+  sd_val <- sd(rh_values)
+  max_val <- max(rh_values)
+  min_val <- min(rh_values)
+  
+  # Calculate n
+  n <- length(rh_values)
+  
+  # Handle potential zero standard deviation
+  if (sd_val == 0) {
+    skew <- NA
+    kurt <- NA
+  } else {
+    # Calculate skewness
+    skew <- (n * sum((rh_values - mean_val)^3)) / ((n-1) * (n-2) * sd_val^3)
+    
+    # Calculate kurtosis
+    kurt <- ((n*(n+1) * sum((rh_values - mean_val)^4)) / ((n-1)*(n-2)*(n-3) * sd_val^4)) - (3 * (n-1)^2 / ((n-2)*(n-3)))
+  }
+  
+  # Return the results
+  return(c(shot_number, mean_val, sd_val, max_val, min_val, skew, kurt))
+}
+
+# GEDI relative height regression function for rh0 - rh100
+rh_linear_regression <- function(row) {
+  # Extract shot_number from the row
+  shot_number <- row[1]
+  
+  # Extract the rh values
+  rh_values <- as.numeric(row[-1])  # Exclude the shot_number
+  
+  # Create an index vector for the height percentiles (0-100)
+  height_percentiles <- sqrt(0:100)
+  
+  # Fit linear regression model
+  model <- lm(rh_values ~ height_percentiles)
+  
+  # Extract coefficients
+  coefficients <- coef(model)
+  
+  # Calculate variance
+  variance <- var(model$residuals)
+  
+  # Return coefficients and variance as new columns
+  return(c(shot_number, coefficients, variance))
+}
+
+# Skew and kurtosis of the rh waveforms 0 - 100
+calculate_skew_kurt <- function(row) {
+  # Extract shot_number
+  shot_number <- row[1]
+  
+  # Extract RH values (excluding shot_number)
+  rh_values <- as.numeric(row[-1])
+  
+  # Calculate skewness and kurtosis
+  skew <- skewness(rh_values)
+  kurt <- kurtosis(rh_values)
+  
+  # Return shot_number along with skewness and kurtosis
+  return(c(shot_number, skew, kurt))
+}
+
+
+# waveformlidar package - maxamp function
+safe_maxamp <- function(row) {
+  result <- tryCatch({
+    max_amp <- maxamp(as.numeric(row[-1]), smooth = TRUE, thres = 0.2, width = 3)
+    return(list(max_amp = max_amp))
+  }, error = function(e) return(list(max_amp = NA)))
+  
+  if (is.null(result)) {
+    return(list(max_amp = NA))
+  } else {
+    return(result)
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 # EXTRACTING METRCIS FROM ALS FUNCTIONS USING LidR
 
+#' Standard LiDAR metrics
+#'
+#' This function computes a set of metrics from LiDAR point clouds. For metric
+#' definitions and references, see Table 1 of Mahoney et al (2022).
+#'
+#' @param Z Return height for each point
+#' @param ReturnNumber Return number of each point
+#' @param min,max The minimum and maximum valid Z value. Returns outside of
+#' this range will be discarded before metric computation.
+#'
+#' @references
+#' Michael J Mahoney, Lucas K Johnson, Eddie Bevilacqua & Colin M Beier
+#' (2022) Filtering ground noise from LiDAR returns produces inferior models of
+#' forest aboveground biomass in heterogenous landscapes, GIScience & Remote
+#' Sensing, 59:1, 1266-1280, DOI: 10.1080/15481603.2022.2103069
+#'
+#' @return A `data.frame` with 40 columns, containing various LiDAR metrics.
+#'
+#' @examples
+#' lidar_preds(rnorm(1000, 3), sample(1:3, 1000, TRUE, c(0.7, 0.2, 0.1)))
+#'
+#' @export
 
-density_preds <- function(Z, percentiles = seq(0.1, 0.9, 0.1)) {
+density_preds <- function(Z, percentiles = seq(0.05, 0.95, 0.05)) {
   z_range <- range(Z)
   z_range_diff <- z_range[[2]] - z_range[[1]]
   
@@ -412,14 +543,12 @@ density_preds <- function(Z, percentiles = seq(0.1, 0.9, 0.1)) {
     stats::setNames(paste0("d", (percentiles * 100))) |>
     list2DF()
 }
-
-height_preds <- function(Z, percentiles = c(seq(0.1, 0.9, 0.1), 0.25, 0.75, 0.95, 0.96, 0.97, 0.98, 0.99)) {
+height_preds <- function(Z, percentiles = c(seq(0.05, 0.95, 0.05), 0.96, 0.97, 0.98, 0.99)) {
   stats::quantile(Z, percentiles) |>
     t() |>
     stats::setNames(paste0("rhz", (percentiles * 100))) |>
     as.data.frame()
 }
-
 l_moment_preds <- function(Z) {
   if (length(unique(Z)) == 1) {
     out <- data.frame(
@@ -444,37 +573,15 @@ l_moment_preds <- function(Z) {
   out
 }
 
-#' Standard LiDAR metrics
-#'
-#' This function computes a set of metrics from LiDAR point clouds. For metric
-#' definitions and references, see Table 1 of Mahoney et al (2022).
-#'
-#' @param Z Return height for each point
-#' @param ReturnNumber Return number of each point
-#' @param min,max The minimum and maximum valid Z value. Returns outside of
-#' this range will be discarded before metric computation.
-#'
-#' @references
-#' Michael J Mahoney, Lucas K Johnson, Eddie Bevilacqua & Colin M Beier
-#' (2022) Filtering ground noise from LiDAR returns produces inferior models of
-#' forest aboveground biomass in heterogenous landscapes, GIScience & Remote
-#' Sensing, 59:1, 1266-1280, DOI: 10.1080/15481603.2022.2103069
-#'
-#' @return A `data.frame` with 40 columns, containing various LiDAR metrics.
-#'
-#' @examples
-#' lidar_preds(rnorm(1000, 3), sample(1:3, 1000, TRUE, c(0.7, 0.2, 0.1)))
-#'
-#' @export
 lidar_preds <- function(Z, ReturnNumber, min = 0, max = Inf) {
   density_pred_template <- lapply(
-    paste0("d", seq(0.1, 0.9, 0.1) * 100),
+    paste0("d", seq(0.05, 0.95, 0.05) * 100),
     \(x) stats::setNames(data.frame(NA_real_), x)
   ) |>
     do.call(what = cbind)
   
   height_pred_template <- lapply(
-    paste0("rhz", c(seq(0.1, 0.9, 0.1), 0.25, 0.75, 0.95, 0.96, 0.97, 0.98, 0.99) * 100),
+    paste0("rhz", c(seq(0.05, 0.95, 0.05), 0.96, 0.97, 0.98, 0.99) * 100),
     \(x) stats::setNames(data.frame(NA_real_), x)
   ) |>
     do.call(what = cbind)
@@ -545,46 +652,6 @@ lidar_preds <- function(Z, ReturnNumber, min = 0, max = Inf) {
 
 
 
-#' Relative height metrics function
-#' For use with lidR::plot_metrics or lidR::pixel_metrics functions. Assumes
-#' the point cloud has been normalised to ground level.
-#' @param Z Return height for each point
-#' @param min,max The minimum and maximum valid Z value. Returns outside of
-#' this range will be discarded before metric computation.
-#' @return A `data.frame` with 100 columns, containing relative height metrics
-#' at 1 percentile intervals.
-#' @export
-rh_preds <- function(Z, min = 0, max = Inf) {
-  out <- lapply(
-    paste0("rh", seq(0.01, 1, 0.01) * 100),
-    \(x) stats::setNames(data.frame(NA_real_), x)
-  ) |>
-    do.call(what = cbind)
-  include <- Z >= min & Z <= max
-  
-  if (sum(include) < 10) {
-    return(out)
-  }
-  
-  Z <- Z[include]
-  Z <- Z[include]
-  out[names(out)] <- height_preds(Z, percentiles = seq(0.01, 1, 0.01))
-  return(out)
-}
-
-
-#' @rdname compute_pixel_metrics
-#' @export
-compute_plot_metrics <- function(
-    las,
-    func = lidar_preds(Z, ReturnNumber),
-    geometry,
-    ...,
-    radius) {
-  lidR::plot_metrics(las, func, geometry = geometry, ..., radius = radius)
-}
-
-
 
 
 
@@ -592,42 +659,69 @@ compute_plot_metrics <- function(
 
 # STATISTICS FUNCTIONS
 
-# GEDI relative height regression function for rh0 - rh100
-rh_linear_regression <- function(row) {
-  # Extract shot_number from the row
-  shot_number <- row[1]
-  
-  # Extract the rh values
-  rh_values <- as.numeric(row[-1])  # Exclude the shot_number
-  
-  # Create an index vector for the height percentiles (0-100)
-  height_percentiles <- sqrt(0:100)
-  
-  # Fit linear regression model
-  model <- lm(rh_values ~ height_percentiles)
-  
-  # Extract coefficients
-  coefficients <- coef(model)
-  
-  # Calculate variance
-  variance <- var(model$residuals)
-  
-  # Return coefficients and variance as new columns
-  return(c(shot_number, coefficients, variance))
-}
-
-
 # Compute the Lin's correlation concordance coefficient (CCC)
-
-calculate_ccc <- function(data, condition = NULL) {
+calculate_ccc <- function(data, rh_col, rhz_col, condition = NULL) {
   if (!is.null(condition)) {
     data <- data %>% filter(!!rlang::parse_expr(condition))
   }
   
-  x <- data$rh97
-  y <- data$rhz97
+  x <- data[[rh_col]]
+  y <- data[[rhz_col]]
   ccc_result <- CCC(x, y, ci = "z-transform", conf.level = 0.95)
-  return(paste("CCC = ", round(ccc_result$rho.c[1], 2)))
+  return(paste(round(ccc_result$rho.c[1], 2)))
+}
+
+# Function to calculate Pearson's r and test significance
+calculate_pearsons_r <- function(data, rh_col, rhz_col, condition = NULL) {
+  if (!is.null(condition)) {
+    data <- data %>% filter(!!rlang::parse_expr(condition))
+  }
+  
+  cor_test_result <- cor.test(data[[rh_col]], data[[rhz_col]], method = "pearson")
+  
+  # Extract Pearson's r and p-value
+  r_value <- cor_test_result$estimate
+  p_value <- cor_test_result$p.value
+  
+  list(r_value = r_value, p_value = p_value)
+}
+
+
+
+
+# Function to calculate RMSE
+calculate_rmse <- function(actual, predicted) {
+  sqrt(mean((actual - predicted)^2, na.rm = TRUE))
+}
+
+# Function to calculate Bias
+calculate_bias <- function(actual, predicted) {
+  mean(actual - predicted, na.rm = TRUE)
+}
+
+# Function to calculate linear model coefficient
+calculate_coef <- function(data, rh_col, rhz_col, condition = NULL) {
+  if (!is.null(condition)) {
+    data <- data %>% filter(!!rlang::parse_expr(condition))
+  }
+  model <- lm(data[[rhz_col]] ~ data[[rh_col]], data = data)
+  coef(model)[2]
+}
+
+# Function to calculate RMSE and Bias for given condition
+calculate_stats <- function(data, rh_col, rhz_col, condition = NULL) {
+  if (!is.null(condition)) {
+    data <- data %>% filter(!!rlang::parse_expr(condition))
+  }
+  actual <- data[[rhz_col]]
+  predicted <- data[[rh_col]]
+  rmse <- calculate_rmse(actual, predicted)
+  bias <- calculate_bias(actual, predicted)
+  list(rmse = rmse, bias = bias)
+}
+# Function to handle 'burned' condition
+handle_burned_condition <- function(data) {
+  data %>% filter(grepl("Burned", Degradation, ignore.case = TRUE))
 }
 
 
@@ -635,7 +729,13 @@ calculate_ccc <- function(data, condition = NULL) {
 
 
 
-
+# Function to calculate Pearson's r for a given condition and rh-rhz pair
+calculate_pearson <- function(data, condition, rh_col, rhz_col) {
+  if (!is.null(condition) && condition != "All") {
+    data <- data %>% filter(!!rlang::parse_expr(condition))
+  }
+  cor(data[[rh_col]], data[[rhz_col]], use = "complete.obs")
+}
 
 
 

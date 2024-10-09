@@ -75,7 +75,7 @@ rm(DAAC18_19S, CAUT23_20S, DAAC1821_21S, retile_DAAC18_19S, retile_CAUT23_20S,
    dtm_DAAC18_19S, dtm_CAUT23_20S, dtm_DAAC1821_21S)
 
 
-# ----------- GEDI download ADD rx_energy and numdetected ----------------
+# ----------- GEDI download  ----------------
 
 # GEDI files are downloaded to correspond with ALS data extent e.g. DAAC ALS 2018 = 2019-01-01 to 2019-12-31
 # DAAC 2021 = 2020-06-01 to 2022-06-01 and CAUTARIO 2023 = 2022-01-01 to 2024-06-01 (year gap in 23-24 collection)
@@ -280,12 +280,12 @@ result_df <- apply(GEDI2AB_trans, 1, rh_linear_regression)
 # Convert the result to a dataframe and set column names
 result_df <- t(data.frame(result_df))
 result_df  <- as.data.frame(result_df, stringsAsFactors = FALSE)
-colnames(result_df) <- c("shot_number", "G_intercept", "G_slope", "G_variance")
+colnames(result_df) <- c("shot_number", "Rh_intercept", "Rh_slope", "Rh_variance")
 
 result_df <- result_df %>%
-  mutate(G_intercept = as.numeric(G_intercept),
-         G_slope = as.numeric(G_slope),
-         G_variance = as.numeric(G_variance))
+  mutate(G_intercept = as.numeric(Rh_intercept),
+         G_slope = as.numeric(Rh_slope),
+         G_variance = as.numeric(Rh_variance))
 
 
 
@@ -309,7 +309,6 @@ maxamp_dt <- rbindlist(maxamp_results, fill = TRUE)
 # Reattach shot numbers
 maxamp_dt <- cbind(shot_number = shot_numbers, maxamp_dt)
 maxamp_dt <- as.data.frame(maxamp_dt)
-
 
 
 # Remerge results with original GEDI2A dataframe and name GEDI regressions
@@ -649,24 +648,28 @@ rm(allGEDI, allGEDI2AB, allGEDI2AB_reg_aged, allGEDI2AB_reg_intact, allGEDI2AB_r
                   
 # ------ Statistics NEARLY DONE ---------
 
-# Calculate Lin's CCC model for entire GEDI/ ALS dataset at rh97 using calculate_ccc function
-ccc_mod <- calculate_ccc(allGEDI2AB_ALS)
+# Set rh and rhz columns for calculation (for example, rh97 and rhz97)
+rh_col <- "rh25"
+rhz_col <- "rhz25"
+
+# Calculate Lin's CCC model for the entire GEDI/ ALS dataset using calculate_ccc function
+ccc_mod <- calculate_ccc(allGEDI2AB_ALS, rh_col, rhz_col)
 print(ccc_mod)
 
 # Subsets of forest gradient of degradation/ recovery
-ccc_modint <- calculate_ccc(allGEDI2AB_ALS, "Degradation == 'Intact'")
+ccc_modint <- calculate_ccc(allGEDI2AB_ALS, rh_col, rhz_col, "Degradation == 'Intact'")
 print(ccc_modint)
 
-ccc_modlog <- calculate_ccc(allGEDI2AB_ALS, "Degradation == 'Logged'")
+ccc_modlog <- calculate_ccc(allGEDI2AB_ALS, rh_col, rhz_col, "Degradation == 'Logged'")
 print(ccc_modlog)
 
-ccc_modburn <- calculate_ccc(allGEDI2AB_ALS, "Degradation == 'Burned' | Degradation == 'Burned 3+'")
+ccc_modburn <- calculate_ccc(allGEDI2AB_ALS, rh_col, rhz_col, "burn_freq %in% 1:10")
 print(ccc_modburn)
 
-ccc_modburnfreq1_3 <- calculate_ccc(allGEDI2AB_ALS, "burn_freq %in% 1:3")
+ccc_modburnfreq1_3 <- calculate_ccc(allGEDI2AB_ALS, rh_col, rhz_col, "burn_freq %in% 1:3")
 print(ccc_modburnfreq1_3)
 
-ccc_modburnfreq4_6 <- calculate_ccc(allGEDI2AB_ALS, "burn_freq %in% 4:6")
+ccc_modburnfreq4_6 <- calculate_ccc(allGEDI2AB_ALS, rh_col, rhz_col, "burn_freq %in% 4:6")
 print(ccc_modburnfreq4_6)
 
 
@@ -676,18 +679,22 @@ print(ccc_modburnfreq4_6)
 # Functions to calculate RMSE, Bias, fit a linear model for rh97 and do so
 # for given forest conditions. Edit function for different 'rh's'
 
+
+# RMSE calculations
 conditions <- c("All", "Degradation == 'Intact'", "Degradation == 'Logged'", 
                 "burned", "burn_freq %in% 1:3", "burn_freq %in% 4:6")
 
 # Initialize vectors to store results
 pearsons_r <- numeric(length(conditions))
+p_values <- numeric(length(conditions))
 rmse_m <- numeric(length(conditions))
 rrmse <- numeric(length(conditions))
 bias_m <- numeric(length(conditions))
 relative_bias <- numeric(length(conditions))
+lins_cc <- character(length(conditions))  # Lin's CCC will be stored as a character string
 
 # Calculate mean actual height
-mean_actual <- mean(allGEDI2AB_ALS$rhz97, na.rm = TRUE)
+mean_actual <- mean(allGEDI2AB_ALS[[rhz_col]], na.rm = TRUE)
 
 for (i in seq_along(conditions)) {
   condition <- conditions[i]
@@ -698,26 +705,37 @@ for (i in seq_along(conditions)) {
   } else {
     burned_subset <- allGEDI2AB_ALS %>% filter(!!rlang::parse_expr(condition))
   }
-  pearsons_r[i] <- calculate_coef(burned_subset)
-  stats <- calculate_stats(burned_subset)
+  
+  # Calculate Pearson's r and p-value
+  cor_results <- calculate_pearsons_r(burned_subset, rh_col, rhz_col)
+  pearsons_r[i] <- cor_results$r_value
+  p_values[i] <- cor_results$p_value
+  
+  stats <- calculate_stats(burned_subset, rh_col, rhz_col)
   rmse_m[i] <- stats$rmse
   rrmse[i] <- (stats$rmse / mean_actual) * 100
   bias_m[i] <- stats$bias
   relative_bias[i] <- (stats$bias / mean_actual) * 100
+  lins_cc[i] <- calculate_ccc(burned_subset, rh_col, rhz_col)  # Calculate Lin's CCC
 }
 
 # Create a dataframe to store the results
 stats_results <- data.frame(
   Forest_Condition = c("All", "Intact", "Logged", "Burned", "Burned 1-3", "Burned 4-6"),
   Pearsons_r = pearsons_r,
+  p_value = p_values,  # Include p-value for significance testing
   RMSE_m = rmse_m,
   rRMSE = rrmse,
   Bias_m = bias_m,
-  Relative_Bias = relative_bias
+  Relative_Bias = relative_bias,
+  Lins_CCC = lins_cc  # Add Lin's CCC to the dataframe
 )
 
-print(stats_results)
+# Format p_values with conditional notation
+stats_results$p_value <- ifelse(stats_results$p_value < 0.0001, "< 0.0001", sprintf("%.4f", stats_results$p_value))
 
+# Print the results
+print(stats_results)
 
 
 
@@ -788,33 +806,41 @@ print(pearsons_results)
 
 # TESTING FOR THE PCA
 
+# This is ready to run (may need editing after run through everything and edited names with amp)
 
 # Eventually need this to inlcude all the ALS waveform stats, GEDI rh intervals
 # canopy cover metrics etc
-allGEDI2APCA <- allGEDI2AB_ALS %>%
+
+
+allGEDI2ABPCA <- allGEDI2AB_ALS_amp %>%
   mutate(Degradation_numeric = case_when(
-    Degradation == 'Burned' ~ "2",
+    Degradation == 'Burned 4+' ~ "3",
+    Degradation == 'Burned 1-3' ~ "2",
     Degradation == 'Logged' ~ "1",
     Degradation == 'Intact' ~ "0",
     TRUE ~ NA_character_)) %>% 
-  select(-solar_elevation, -lat_lowestmode, -lon_lowestmode, 
+  select(-solar_elevation, -l2b_quality_flag, -pgap_theta_error,
          -shot_number, -elev_highestreturn, -elev_lowestmode, 
          -sensitivity, -degrade_flag, -geometry, -Age_category,
-         -Age_category2, -year, -ALS_CRS, -Degradation2, 
-         -Degradation, -rh0) #- forest_age, -burn_freq)
+         -Age_category2, -year, -ALS_CRS, -rh0, -matches("^rhz"),
+         -max_amp.x, -max, -validation, -omega, -rh5, -rh10, -rh15,
+         -rh20, -rh30, -rh35, -rh40, -rh45, -rh55, -rh60, -rh65, -rh70, 
+         -rh80, -rh85, -rh90, -rh95, -rh97, -rh98, -Degradation, -max_amp.y,
+         -z_kurt, -z_skew) #- forest_age, -burn_freq)
 
-allGEDI2APCA <- st_drop_geometry(allGEDI2APCA)
+allGEDI2ABPCA <- st_drop_geometry(allGEDI2ABPCA)
 
-allGEDI2APCA$G_intercept <- as.numeric(allGEDI2APCA$G_intercept)
-allGEDI2APCA$G_slope <- as.numeric(allGEDI2APCA$G_slope)
-allGEDI2APCA$G_variance <- as.numeric(allGEDI2APCA$G_variance)
-allGEDI2APCA$Degradation_numeric <- as.numeric(allGEDI2APCA$Degradation_numeric)
+allGEDI2ABPCA$G_intercept <- as.numeric(allGEDI2ABPCA$G_intercept)
+allGEDI2ABPCA$G_slope <- as.numeric(allGEDI2ABPCA$G_slope)
+allGEDI2ABPCA$G_variance <- as.numeric(allGEDI2ABPCA$G_variance)
+allGEDI2ABPCA$Degradation_numeric <- as.numeric(allGEDI2ABPCA$Degradation_numeric)
+allGEDI2ABPCA$n_peaks <- as.numeric(allGEDI2ABPCA$n_peaks)
 
-str(allGEDI2APCA)
+str(allGEDI2ABPCA)
 
 
 # Standardize data and run PCA analysis
-scaled_data <- scale(allGEDI2APCA)
+scaled_data <- scale(allGEDI2ABPCA)
 pca_result <- prcomp(scaled_data, center = TRUE, scale. = TRUE)
 
 #  Summary of the variance explained by each principal component
@@ -824,33 +850,16 @@ summary(pca_result)
 loadings_pca <- pca_result$rotation[, 1:3]  # Adjust the number (e.g., 1:3) for the desired number of PCs
 print(loadings_pca)
 
-# Loadings of variables on each principal component
-loadings(pca_result)
-
-# Scree plot to visualize variance explained
-screeplot(pca_result, type = "line")
-
-# Biplot to visualize scores and loadings
-biplot(pca_result)
-
-# Scatterplot of scores on the first two principal components
-ggplot(as.data.frame(pca_result$x), aes(x = PC1, y = PC2)) +
-  geom_point() +
-  labs(x = "Principal Component 1",
-       y = "Principal Component 2",
-       title = "PCA: Scores Plot")
-
-
 
 # Plotly graphs to show degradation type with overall PCA results
 components <- as.data.frame(pca_result$x)
 loadings <- (pca_result)$rotation
 
 # Extract degradation types
-degradation_type <- allGEDI2APCA$Degradation_numeric
+degradation_type <- allGEDI2ABPCA$Degradation_numeric
 
 # Create a color palette for degradation types
-colors <- c("chartreuse3", "deepskyblue", "red")  # You may need to adjust the colors
+colors <- c("#92c5de", "#0073e6", "#e9a2b4", "#ca0020")
 
 # Reverse PC2 to match the example
 components$PC2 <- -components$PC2
@@ -865,7 +874,7 @@ fig <- plot_ly(components, x = ~PC1, y = ~PC2, color = ~degradation_type,
   )
 
 # Add loadings
-features <- colnames(allGEDI2APCA)
+features <- colnames(allGEDI2ABPCA)
 for (i in seq_along(features)) {
   fig <- fig %>%
     add_segments(x = 0, xend = loadings[i, 1], y = 0, yend = loadings[i, 2], 
@@ -879,54 +888,99 @@ fig
 
 
 
+# Install and load the ggrepel package if not already done
+if (!requireNamespace("ggrepel", quietly = TRUE)) {
+  install.packages("ggrepel")
+}
+library(ggrepel)
+
+
+
+
+# Define a custom scale for loadings adjustment
+scale <- 20  # Increase the scale to make the arrows longer
+
+# Create a base ggplot object with scores and degradation types
+biplot <- ggplot(data = components, aes(x = PC1, y = PC2)) +
+  
+  # Add points for each degradation type
+  geom_point(aes(color = degradation_type), size = 2, shape = 19, alpha = 0.7) +  # Slight transparency
+  
+  # Add segments for loadings with longer arrows
+  geom_segment(
+    data = as.data.frame(loadings), 
+    aes(x = 0, y = 0, xend = PC1 * scale, yend = PC2 * scale), 
+    arrow = arrow(length = unit(0.3, "cm"), type = "open", angle = 25),
+    size = 1.2, color = "darkblue"
+  ) +
+  
+  # Add labels for the loadings with larger text size
+  geom_text_repel(
+    data = as.data.frame(loadings), 
+    aes(x = PC1 * scale, y = PC2 * scale, label = rownames(loadings)), 
+    size = 4, color = "black", max.overlaps = 10, # Adjust size and reduce overlap
+    box.padding = 0.35, point.padding = 0.5
+  ) +
+  
+  # Apply custom colors for degradation types
+  scale_color_manual(values = colors) +
+  
+  # Set labels and theme
+  labs(title = "Biplot - PCA", x = "PC1", y = "PC2", color = "Degradation Type") +
+  
+  # Minimal clean theme
+  theme_minimal()
+
+# Display the biplot
+print(biplot)
+
+
+
+
+
 
 
 # Subset data for each degradation type
-Burned_data <- allGEDI2APCA[allGEDI2APCA$Degradation_numeric == 2, ]
-Logged_data <- allGEDI2APCA[allGEDI2APCA$Degradation_numeric == 1, ]
-Intact_data <- allGEDI2APCA[allGEDI2APCA$Degradation_numeric == 0, ]
+Burned_data4_6 <- allGEDI2ABPCA[allGEDI2ABPCA$Degradation_numeric == 3, ]
+Burned_data1_3 <- allGEDI2ABPCA[allGEDI2ABPCA$Degradation_numeric == 2, ]
+Logged_data <- allGEDI2ABPCA[allGEDI2ABPCA$Degradation_numeric == 1, ]
+Intact_data <- allGEDI2ABPCA[allGEDI2ABPCA$Degradation_numeric == 0, ]
 
 # Remove columns with zero variance (excluding Degradation_numeric)
-Burned_data <- Burned_data[, apply(Burned_data[, -which(names(Burned_data) == "Degradation_numeric")], 2, function(x) var(x) != 0)]
+Burned_data4_6 <- Burned_data4_6[, apply(Burned_data4_6[, -which(names(Burned_data4_6) == "Degradation_numeric")], 2, function(x) var(x) != 0)]
+Burned_data1_3 <- Burned_data1_3[, apply(Burned_data1_3[, -which(names(Burned_data1_3) == "Degradation_numeric")], 2, function(x) var(x) != 0)]
 Logged_data <- Logged_data[, apply(Logged_data[, -which(names(Logged_data) == "Degradation_numeric")], 2, function(x) var(x) != 0)]
 Intact_data <- Intact_data[, apply(Intact_data[, -which(names(Intact_data) == "Degradation_numeric")], 2, function(x) var(x) != 0)]
 
 # Perform PCA for Burned data
-pca_Burned <- prcomp(select(Burned_data, -Degradation_numeric), center = TRUE, scale. = TRUE)
-
-# Perform PCA for Logged data
+pca_Burned4_6 <- prcomp(select(Burned_data4_6, -Degradation_numeric), center = TRUE, scale. = TRUE)
+pca_Burned1_3 <- prcomp(select(Burned_data1_3, -Degradation_numeric), center = TRUE, scale. = TRUE)
 pca_Logged <- prcomp(select(Logged_data, -Degradation_numeric), center = TRUE, scale. = TRUE)
-
-# Perform PCA for Intact data
 pca_Intact <- prcomp(select(Intact_data, -Degradation_numeric), center = TRUE, scale. = TRUE)
 
 # Analyze PCA results for each subset
-summary(pca_Burned)
+summary(pca_Burned4_6)
+summary(pca_Burned1_3)
 summary(pca_Logged)
 summary(pca_Intact)
 
 # Extract loadings for the first few PCs for Burned data
-loadings_Burned <- pca_Burned$rotation[, 1:3]  # Adjust the number (e.g., 1:3) for the desired number of PCs
-
-# Extract loadings for the first few PCs for Logged data
+loadings_Burned4_6 <- pca_Burned4_6$rotation[, 1:3] 
+loadings_Burned1_3 <- pca_Burned1_3$rotation[, 1:3] # Adjust the number (e.g., 1:3) for the desired number of PCs
 loadings_Logged <- pca_Logged$rotation[, 1:3]
-
-# Extract loadings for the first few PCs for Intact data
 loadings_Intact <- pca_Intact$rotation[, 1:3]
 
-# Print the loadings
-print(loadings_Burned)
+print(loadings_Burned4_6)
+print(loadings_Burned1_3)
 print(loadings_Logged)
 print(loadings_Intact)
 
 # Plot PCA results for each subset
-plot(pca_Burned, main = "PCA for Burned Data")
+plot(pca_Burned4_6, main = "PCA for Burned 4-6 Data")
+plot(pca_Burned1_3, main = "PCA for Burned 1-3 Data")
 plot(pca_Logged, main = "PCA for Logged Data")
 plot(pca_Intact, main = "PCA for Intact Data")
-# Plot PCA results for each subset
-plot(pca_Burned, main = "PCA for Burned Data")
-plot(pca_Logged, main = "PCA for Logged Data")
-plot(pca_Intact, main = "PCA for Intact Data")
+
 
 
 
@@ -941,54 +995,81 @@ plot(pca_Intact, main = "PCA for Intact Data")
 
 
 # PANEL ONE DONE - JUST NEED TO REMOVE CAPTIONS
-## PANEL 1 - GEDI validation / correspondance
+## FIGURE 1 - GEDI validation / correspondance
 
-# Plot 1 - Correspondance between GEDI and ALS
+# Plot 1 : 4 panels - Correspondance between GEDI and ALS heights
 # Filter the reshaped height data to keep only the pairs of ALS and GEDI columns
-allGEDI2AB_ALS_height_long <- allGEDI2AB_ALS %>%
-  pivot_longer(cols = starts_with("rhz"), names_to = "ALS", values_to = "ALS_value") %>%
-  pivot_longer(cols = starts_with("rh"), names_to = "GEDI", values_to = "GEDI_value") %>%
-  filter((ALS == "rhz25" & GEDI == "rh25") | 
-           (ALS == "rhz50" & GEDI == "rh50") |
-           (ALS == "rhz75" & GEDI == "rh75") |
-           (ALS == "rhz97" & GEDI == "rh97"))
+height_rhz25 <- allGEDI2AB_ALS_height_long %>% filter(ALS == "rhz25")
+height_rhz50 <- allGEDI2AB_ALS_height_long %>% filter(ALS == "rhz50")
+height_rhz75 <- allGEDI2AB_ALS_height_long %>% filter(ALS == "rhz75")
+height_rhz97 <- allGEDI2AB_ALS_height_long %>% filter(ALS == "rhz97")
 
-# Calculate correlation and create annotation text for height metrics
-correlations_height <- allGEDI2AB_ALS_height_long %>%
-  group_by(ALS, GEDI) %>%
-  summarise(correlation = cor(ALS_value, GEDI_value, use = "complete.obs")) %>%
-  mutate(annotation = paste0("R² = ", round(correlation^2, 2)))
+# Define the limits for both x and y axes for the rhz plots
+common_limits <- c(0, 60)
 
-panel_plot1 <- allGEDI2AB_ALS_height_long %>%
-  ggplot(aes(x = ALS_value, y = GEDI_value, color = Degradation)) +
+# Create individual plots for each height metric with the same scales and aspect ratio
+# Suppressing legends on rhz plots
+plot_rhz25 <- ggplot(height_rhz25, aes(x = ALS_value, y = GEDI_value, color = Degradation)) +
   geom_point(size = 0.5) +
-  geom_text(data = correlations_height, aes(x = Inf, y = Inf, label = annotation), hjust = 1.1, vjust = 2, size = 3, color = "black") +
-  labs(x = "ALS Relative height (m)", y = "GEDI Relative height (m)") +
+  geom_text(data = correlations_height %>% filter(ALS == "rhz25"), 
+            aes(x = Inf, y = Inf, label = annotation), 
+            hjust = 1.1, vjust = 2, size = 3, color = "black") +
+  labs(x = "ALS Relative Height (m)", y = "GEDI Relative Height (m)", title = "rhz25") +
   theme_bw() +
-  scale_colour_manual(values = c("orange", "red", "darkgreen", "brown")) +
-  facet_wrap(~ ALS, scales = "free") +
-  theme(
-    plot.title = element_text(hjust = 0.5, face = "bold"),
-    strip.background = element_blank(),
-    strip.text = element_text(face = "bold")
-  )
-# Print the panel plot
-print(panel_plot1)
+  scale_colour_manual(values = c("#e9a2b4", "#ca0020", "#92c5de", "#0073e6")) +
+  coord_fixed(ratio = 1, xlim = common_limits, ylim = common_limits) +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  guides(color = "none")  # Suppress the legend
+
+plot_rhz50 <- ggplot(height_rhz50, aes(x = ALS_value, y = GEDI_value, color = Degradation)) +
+  geom_point(size = 0.5) +
+  geom_text(data = correlations_height %>% filter(ALS == "rhz50"), 
+            aes(x = Inf, y = Inf, label = annotation), 
+            hjust = 1.1, vjust = 2, size = 3, color = "black") +
+  labs(x = "ALS Relative Height (m)", y = "GEDI Relative Height (m)", title = "rhz50") +
+  theme_bw() +
+  scale_colour_manual(values = c("#e9a2b4", "#ca0020", "#92c5de", "#0073e6")) +
+  coord_fixed(ratio = 1, xlim = common_limits, ylim = common_limits) +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  guides(color = "none")  # Suppress the legend
+
+plot_rhz75 <- ggplot(height_rhz75, aes(x = ALS_value, y = GEDI_value, color = Degradation)) +
+  geom_point(size = 0.5) +
+  geom_text(data = correlations_height %>% filter(ALS == "rhz75"), 
+            aes(x = Inf, y = Inf, label = annotation), 
+            hjust = 1.1, vjust = 2, size = 3, color = "black") +
+  labs(x = "ALS Relative Height (m)", y = "GEDI Relative Height (m)", title = "rhz75") +
+  theme_bw() +
+  scale_colour_manual(values = c("#e9a2b4", "#ca0020", "#92c5de", "#0073e6")) +
+  coord_fixed(ratio = 1, xlim = common_limits, ylim = common_limits) +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  guides(color = "none")  # Suppress the legend
+
+plot_rhz97 <- ggplot(height_rhz97, aes(x = ALS_value, y = GEDI_value, color = Degradation)) +
+  geom_point(size = 0.5) +
+  geom_text(data = correlations_height %>% filter(ALS == "rhz97"), 
+            aes(x = Inf, y = Inf, label = annotation), 
+            hjust = 1.1, vjust = 2, size = 3, color = "black") +
+  labs(x = "ALS Relative Height (m)", y = "GEDI Relative Height (m)", title = "rhz97") +
+  theme_bw() +
+  scale_colour_manual(values = c("#e9a2b4", "#ca0020", "#92c5de", "#0073e6")) +
+  coord_fixed(ratio = 1, xlim = common_limits, ylim = common_limits) +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  guides(color = "none")  # Suppress the legend
 
 
-
-# Plot 2 - Correspondance between canopy heigths
-# Reshape the data for canopy cover metrics
+# Plot 2 - Correspondance between canopy cover
+# Reshaping the data for canopy cover metrics
 allGEDI2AB_ALS_cover_long <- allGEDI2AB_ALS %>%
   pivot_longer(cols = starts_with("can"), names_to = "ALS", values_to = "ALS_value") %>%
   pivot_longer(cols = "cover", names_to = "GEDI", values_to = "GEDI_value") %>%
   filter(ALS == "cancov")
 
-# Convert columns to character type to avoid type mismatch
+# Converting columns to character type to avoid type mismatch
 allGEDI2AB_ALS_cover_long <- allGEDI2AB_ALS_cover_long %>%
   mutate(across(c(ALS, GEDI), as.character))
 
-# Calculate correlation and create annotation text for canopy cover
+# Calculate correlation for canopy cover
 correlations_cover <- allGEDI2AB_ALS_cover_long %>%
   group_by(GEDI) %>%
   summarise(correlation = cor(ALS_value, GEDI_value, use = "complete.obs")) %>%
@@ -997,20 +1078,30 @@ correlations_cover <- allGEDI2AB_ALS_cover_long %>%
 # Create the panel plot
 panel_plot2 <- allGEDI2AB_ALS_cover_long %>%
   ggplot(aes(x = ALS_value, y = GEDI_value, color = Degradation)) +
-  geom_point(size = 0.5) +  # Adjust the size of the points here
-  geom_text(data = correlations_cover, aes(x = Inf, y = Inf, label = annotation), hjust = 1.1, vjust = 2, size = 3, color = "black") +
-  labs(x = "ALS Canopy Cover", y = "GEDI Canopy Cover") +
+  geom_point(size = 0.5) +  
+  geom_text(data = correlations_cover, aes(x = Inf, y = Inf, label = annotation), 
+            hjust = 1.1, vjust = 2, size = 3, color = "black") +
+  labs(x = "ALS Canopy Cover", y = "GEDI Canopy Cover", title = "Canopy Cover") +
   theme_bw() +
-  scale_colour_manual(values = c("orange", "red", "darkgreen", "brown")) +
-  facet_wrap(~ GEDI, scales = "free") +
-  theme(
-    plot.title = element_text(hjust = 0.5, face = "bold"),  # Center the title and make it bold
-    strip.background = element_blank(),  # Remove grey background from facet labels
-    strip.text = element_text(face = "bold")  # Make facet labels bold
-  )
+  scale_colour_manual(values = c("#e9a2b4", "#ca0020", "#92c5de", "#0073e6")) +
+  coord_fixed(ratio = 1) +  # Ensures square aspect ratio
+  theme(plot.title = element_text(hjust = 0.5),
+        strip.background = element_blank(),
+        strip.text = element_text(face = "bold"))
 
-# Print the panel plot
 print(panel_plot2)
+
+
+# Combine validation plots (height and cover)
+figure1 <- (plot_rhz25 + plot_rhz50 + panel_plot2 + plot_rhz75 + plot_rhz96)
+
+# Display the combined plot
+figure1
+
+
+
+
+
 
 
 # Plot 3 - Correspondance for degraadtion types
@@ -1025,11 +1116,14 @@ panel_plot3 <- allGEDI2AB_ALS %>%
   filter(Degradation %in% c("Intact", "Logged", "Burned 1-3", "Burned 4+")) %>%
   ggplot(aes(x = rhz97, y = rh97, color = Degradation)) +
   geom_point(size = 0.5) +
-  geom_text(data = correlations_degradation, aes(x = Inf, y = Inf, label = annotation), hjust = 1.1, vjust = 2, size = 3, color = "black") +
+  geom_text(data = correlations_degradation, aes(x = Inf, y = Inf, label = annotation), 
+            hjust = 1.1, vjust = 2, size = 3, color = "black") +
   labs(x = "ALS Relative height (m)", y = "GEDI Relative height (m)") +
   theme_bw() +
-  scale_colour_manual(values = c("orange", "red", "darkgreen", "brown")) +
-  facet_wrap(~ Degradation, scales = "free") +
+  scale_colour_manual(values = c("#e9a2b4", "#ca0020", "#92c5de", "#0073e6")) +
+  facet_wrap(~ Degradation) +  # Remove scales = "free" to keep consistent scales across facets
+  xlim(0, 60) +  # Set x-axis limits for all facets
+  ylim(0, 60) +  # Set y-axis limits for all facets
   theme(
     plot.title = element_text(hjust = 0.5, face = "bold"),
     strip.background = element_blank(),
@@ -1061,8 +1155,7 @@ panel_plot4 <- pearsons_results_data_filtered %>%
   geom_point(data = max_pearsons_r, aes(x = Pair, y = Pearsons_r), size = 4, shape = 18, show.legend = FALSE) +  # Highlight the max points
   labs(x = "Pair (GEDI rh- ALS rhz)", y = "Pearson's r") +
   theme_bw() +
-  scale_color_manual(values = c("Intact" = "darkgreen", "Logged" = "brown", "Burned 1-3" = "orange", "Burned 4-6" = "red")) +
-  facet_wrap(~ Condition, scales = "free_y") +  # Separate panels for each degradation type
+  scale_color_manual(values = c("Intact" = "#92c5de", "Logged" = "#0073e6", "Burned 1-3" = "#e9a2b4", "Burned 4-6" = "#ca0020")) +
   theme(
     plot.title = element_text(hjust = 0.5, face = "bold"),  # Center and bold the title
     strip.background = element_blank(),  # Remove grey background from facet labels
@@ -1074,16 +1167,12 @@ panel_plot4 <- pearsons_results_data_filtered %>%
 print(panel_plot4)
 
 
-# Suppress legends for plots 1 and 3
-panel_plot1 <- panel_plot1 + theme(legend.position = "none")
-panel_plot3 <- panel_plot3 + theme(legend.position = "none")
-
 # Combine the plots using the patchwork package
-combined_plot <- (panel_plot1 + panel_plot2) / (panel_plot3 + panel_plot4) +
+figure2 <- (panel_plot3 + panel_plot4) +
   plot_layout(guides = "collect")
 
 # Print the combined plot
-print(combined_plot)
+print(figure2)
 
 
 
@@ -1092,7 +1181,11 @@ print(combined_plot)
 
 
 
-## PANEL 2 
+
+
+
+
+## FIGURE 3 
 
 # Ordering of age within plots
 age_order <- c("<7", "7-15", "15-25", "25-40", ">40")
@@ -1114,12 +1207,11 @@ panel_plot5 <- GEDI2AB %>%
   #annotation_custom(rasterGrob(background_image, width = unit(1,"npc"), height = unit(1,"npc"), 
                              #  gp = gpar(alpha = 0.5))) +  # Add background image with opacity
   geom_point(aes(x = Age_category, y = rh97, color = Degradation), size = 1, position = position_jitter(width = 0.3)) +
-  labs(title = "GEDI Canopy Height by Degradation", x = "Forest Age", y = "Canopy Height (m)") +
+  labs(title = "Canopy Height", x = "Forest Age", y = "Canopy Height (m)") +
   theme_bw() +
   ylim(0, 45) +  # Set the y-axis limit
-  scale_colour_manual(values = c("orange", "red", "darkgreen", "brown")) +
-  scale_fill_manual(values = c("orange", "red", "darkgreen", "brown"))
-
+  scale_colour_manual(values = c("#e9a2b4", "#ca0020", "#92c5de", "#0073e6"))
+  
 # Display the plot
 plot(panel_plot5)
 
@@ -1128,19 +1220,18 @@ plot(panel_plot5)
 panel_plot6 <- GEDI2AB %>%
   ggplot(aes(x = Age_category, y = rh97, color = Degradation, fill = Degradation)) +
   geom_boxplot(outlier.size = 1, outlier.shape = 16, position = position_dodge(width = 0.5)) +
-  labs(title = "GEDI Canopy Height by Degradation", x = "Forest Age", y = " GEDI Canopy Height (m)") +
+  stat_summary(fun = mean, geom = "point", position = position_dodge(width = 0.5), 
+               shape = 23, size = 2, color = "black", fill = "white", aes(group = Degradation)) +
+  stat_summary(fun = mean, geom = "text", color = "black", position = position_dodge(width = 0.5), 
+               aes(label = round(..y.., 1), group = Degradation), vjust = -1.5, size = 3) +
+  labs(x = "Forest Age", y = "Canopy Height (m)") +
   theme_bw() +
-  scale_colour_manual(values = c("orange", "red", "darkgreen", "brown")) +
-  scale_fill_manual(values = c("orange", "red", "darkgreen", "brown"))
+  scale_colour_manual(values = c("#e9a2b4", "#ca0020", "#92c5de", "#0073e6")) +
+  scale_fill_manual(values = c("#e9a2b4", "#ca0020", "#92c5de", "#0073e6"))
 
+  
 # Display the plot
 plot(panel_plot6)
-
-
-
-
-
-
 
 
 
@@ -1151,9 +1242,8 @@ plot(panel_plot6)
 panel_plot7 <- GEDI2AB1 %>%
   ggplot() +
   geom_point(aes(x = Age_category, y = cover, color = Degradation), size = 1, alpha = 0.9, position = position_jitter(width = 0.3)) +
-  labs(title = "GEDI canopy cover", x = "Forest age", y = "Canopy cover (%)") +
-  scale_colour_manual(values = c("orange", "red", "darkgreen", "brown")) +
-  scale_fill_manual(values = c("orange", "red", "darkgreen", "brown")) +
+  labs(title = "Canopy Cover", x = "Forest age", y = "Canopy cover (%)") +
+  scale_colour_manual(values = c("#e9a2b4", "#ca0020", "#92c5de", "#0073e6")) +
   theme_bw()
 
 plot(panel_plot7)
@@ -1163,54 +1253,182 @@ plot(panel_plot7)
 panel_plot8 <- GEDI2AB %>%
   ggplot(aes(x = Age_category, y = cover, color = Degradation, fill = Degradation)) +
   geom_boxplot(outlier.size = 1, outlier.shape = 16, position = position_dodge(width = 0.5)) +
-  labs(title = "GEDI canopy cover", x = "Forest Age", y = "Canopy cover (%)") +
+  stat_summary(fun = mean, geom = "point", position = position_dodge(width = 0.5), 
+               shape = 23, size = 2, color = "black", fill = "white", aes(group = Degradation)) +
+  stat_summary(fun = mean, geom = "text", color = "black", position = position_dodge(width = 0.5), 
+               aes(label = round(..y.., 1), group = Degradation), vjust = -1.5, size = 3) +
+  labs(x = "Forest Age", y = "Canopy cover (%)") +
   theme_bw() +
-  scale_colour_manual(values = c("orange", "red", "darkgreen", "brown")) +
-  scale_fill_manual(values = c("orange", "red", "darkgreen", "brown"))
+  scale_colour_manual(values = c("#e9a2b4", "#ca0020", "#92c5de", "#0073e6")) +
+  scale_fill_manual(values = c("#e9a2b4", "#ca0020", "#92c5de", "#0073e6"))
 
 # Display the plot
 plot(panel_plot8)
 
 
 
+# GEDI AGBD
 
 
-
-
-
-
-
-
+GEDI2AB4A <- GEDI2AB4A %>%
+  filter(l4_quality_flag == 1)
 
 panel_plot9 <- GEDI2AB4A %>%
   ggplot() +
-  geom_point(aes(x = Age_category, y = cover, color = agbd), size = 1, alpha = 0.9, position = position_jitter(width = 0.3)) +
-  labs(title = "GEDI AGBD", x = "Forest age", y = "AGBD") +
-  scale_color_continuous(name = "AGBD", low = "lightblue", high = "darkblue") +  # Set color for the legend bar
+  geom_point(aes(x = Age_category, y = agbd, color = Degradation), size = 1, alpha = 0.9, position = position_jitter(width = 0.3)) +
+  labs(title = "AGBD", x = "Forest age", y = "AGBD") +
+  scale_colour_manual(values = c("#e9a2b4", "#ca0020", "#92c5de", "#0073e6")) +
   theme_bw()
 
 plot(panel_plot9)
 
 
-panel_plot10 <- GEDI2AB %>%
-  ggplot(aes(x = Age_category, y = cover, color = Degradation, fill = Degradation)) +
+panel_plot10 <- GEDI2AB4A %>%
+  ggplot(aes(x = Age_category, y = agbd, color = Degradation, fill = Degradation)) +
   geom_boxplot(outlier.size = 1, outlier.shape = 16, position = position_dodge(width = 0.5)) +
-  labs(title = "GEDI canopy cover", x = "Forest Age", y = "Canopy cover (%)") +
+  stat_summary(fun = mean, geom = "point", position = position_dodge(width = 0.5), 
+               shape = 23, size = 2, color = "black", fill = "white", aes(group = Degradation)) +
+  stat_summary(fun = mean, geom = "text", color = "black", position = position_dodge(width = 0.5), 
+               aes(label = round(..y.., 1), group = Degradation), vjust = -1.5, size = 3) +
+  labs(x = "Forest Age", y = "AGBD (ppm)") +
   theme_bw() +
-  scale_colour_manual(values = c("orange", "red", "darkgreen", "brown")) +
-  scale_fill_manual(values = c("orange", "red", "darkgreen", "brown"))
+  scale_colour_manual(values = c("#e9a2b4", "#ca0020", "#92c5de", "#0073e6")) +
+  scale_fill_manual(values = c("#e9a2b4", "#ca0020", "#92c5de", "#0073e6"))
 
-# Display the plot
-plot(panel_plot10)
+# Print the plot
+print(panel_plot10)
+
 
 
 # Combine the plots using the patchwork package
-combined_plot2 <- (panel_plot5 + panel_plot6 /
-                     panel_plot7 + panel_plot8 /
-                     panel_plot9 + panel_plot10)
+combined_plot2 <- (panel_plot5 + panel_plot6) /
+                   (panel_plot7 + panel_plot8) /
+                   (panel_plot9 + panel_plot10)
 
 # Print the combined plot
 print(combined_plot2)
+
+
+
+
+
+
+
+
+
+
+## FIGURE 4
+
+# Transpose the data and select only relevant rows for rh shape
+
+allGEDI2AB_trans <- allGEDI2AB_ALS %>%
+  as.data.frame() %>%
+  select(shot_number, geometry, Degradation, starts_with("rh"))
+
+# Reshape the data to long format
+allGEDI2AB_trans_plot <- allGEDI2AB_trans %>%
+  pivot_longer(cols = starts_with("rh"), 
+               names_to = "rh_value", 
+               values_to = "rh_shape") %>%
+  mutate(rh_value = as.numeric(gsub("rh", "", rh_value)))
+
+
+# Calculate the average rh_shape for each degradation type
+avg_rh_shape <- allGEDI2AB_trans_plot %>%
+  group_by(Degradation, rh_value) %>%
+  summarize(mean_rh_shape = mean(rh_shape, na.rm = TRUE))
+
+# Plot the average rh_shape by degradation type
+panel_plot12 <- ggplot(avg_rh_shape, aes(x = rh_value, y = mean_rh_shape, color = Degradation)) +
+  geom_line(size = 1) +
+  theme_minimal() +
+  labs(title = "Average Relative Height", 
+       x = "Relative Height (rh)", 
+       y = "Elevation (m)") +
+  theme(legend.position = "bottom") +
+  scale_color_manual(values = c("Burned 1-3" = "#e9a2b4", 
+                                "Burned 4+" = "#ca0020", 
+                                "Intact" = "#92c5de", 
+                                "Logged" = "#0073e6")) +
+  theme(legend.position = "none")
+
+# Print the plot
+print(panel_plot12)
+
+
+# DATA FROM GEDI_AMP SCRIPT
+
+panel_plot13 <- ggplot(combined_data, aes(x = avg_rh, y = avg_amplitude, color = Degradation, group = Degradation)) +
+  geom_line(size = 1) +
+  labs(title = "Average Waveform Amplitude",
+       x = "Elevation (m)",
+       y = "Waveform Amplitude") +
+  theme_minimal() +
+  scale_color_manual(values = c("Burned 1-3" = "#e9a2b4", 
+                                "Burned 4+" = "#ca0020", 
+                                "Intact" = "#92c5de", 
+                                "Logged" = "#0073e6")) +
+  coord_flip() +  # Flip axes
+  scale_y_reverse() # NEED TO CHECK AMP VALUES (CUMULATIVE DECREASING ETC)
+
+print(panel_plot13)
+
+figure3 <- (panel_plot12 + panel_plot13) +
+  plot_layout(guides = "collect")
+
+figure3
+
+
+
+
+##FIGURE 5
+
+
+
+
+wave_slope <- allGEDI2AB_ALS_amp %>%
+  ggplot(aes(x=Degradation, y=W_slope, fill=Degradation)) +
+  geom_violin(color = "black", width = 1.3, alpha = 0.9) +  
+  #geom_jitter(width = 0.1, size = 0.1, alpha = 0.1) +
+  labs(title = "Gradient slope of waveform profile", x = "Degradation type", y = "Slope") +
+  theme_bw() +
+  scale_fill_manual(values = c("Burned 1-3" = "#e9a2b4", 
+                                "Burned 4+" = "#ca0020", 
+                                "Intact" = "#92c5de", 
+                                "Logged" = "#0073e6")) +  # Custom colors
+     theme(
+       panel.grid.major = element_blank(),
+       panel.grid.minor = element_blank(),
+        legend.position = "none"
+       )
+
+plot(wave_slope)
+
+
+GEDI2A_amp_deg <- GEDI2A_amp %>%
+  mutate(Degradation_Group = case_when(
+    str_detect(Degradation, "Burned") ~ "Burned",
+    Degradation == "Logged" ~ "Logged",
+    Degradation == "Intact" ~ "Intact"
+  ))
+
+
+wave_slope2 <- GEDI2A_amp_deg %>%
+  ggplot(aes(x = Degradation_Group, y = W_slope, fill = Degradation_Group)) +
+  geom_violin(color = "black", width = 0.9, alpha = 0.9) +  
+  labs(title = "Gradient slope of waveform profile", x = "Degradation Group", y = "Slope") +
+  theme_bw() +
+  scale_fill_manual(values = c("Burned" = "#cc3333", 
+                               "Logged" = "#0073e6", 
+                               "Intact" = "#92c5de")) +  # Adjust colors for the new groups
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    legend.position = "none"
+  )
+
+plot(wave_slope2)
+
 
 
 
@@ -1253,37 +1471,16 @@ plot(GEDIrh99_degradation)
 
 
 
-
-
-
-
 # NEED TO LOOK AT PLOTTING THE VARIANCES
 
-GEDI2AB$G_slope <- as.numeric(GEDI2AB$G_slope)
-GEDI2AB$G_variance <- as.numeric(GEDI2AB$G_variance)
-GEDI2AB$G_intercept <- as.numeric(GEDI2AB$G_intercept)
+#GEDI2AB$G_slope <- as.numeric(GEDI2AB$G_slope)
+#GEDI2AB$G_variance <- as.numeric(GEDI2AB$G_variance)
+#GEDI2AB$G_intercept <- as.numeric(GEDI2AB$G_intercept)
 
-GEDI_slope <- GEDI2AB %>%
-  ggplot(aes(x=Degradation, y=G_variance, color=Degradation)) +
-  geom_point() +
-  labs(title = "G_slope", x = "height", y = "G_slope") +
-  theme_bw() 
-#scale_colour_manual(values = c("darkorange", "darkolivegreen3", "Black"))
-plot(GEDI_slope)
 
-# Violin plot for GEDI top height across degradation
-GEDI_slope <- GEDI2AB %>%
-  ggplot(aes(x=Degradation, y=G_slope, fill=Degradation)) +
-  geom_violin(color = "black", alpha = 0.8) +
-  geom_jitter(width = 0.1, size = 1, alpha = 0.5) +
-  labs(title = "Gradient slope of relative height profile", x = "Degradation type", y = "Slope") +
-  theme_bw() +
-  theme(
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    legend.position = "none"
-  )
-plot(GEDI_slope)
+ 
+
+
 
 # Violin plot for GEDI top height across degradation
 
