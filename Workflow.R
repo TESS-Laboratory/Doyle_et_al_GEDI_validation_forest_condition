@@ -283,9 +283,9 @@ result_df  <- as.data.frame(result_df, stringsAsFactors = FALSE)
 colnames(result_df) <- c("shot_number", "Rh_intercept", "Rh_slope", "Rh_variance")
 
 result_df <- result_df %>%
-  mutate(G_intercept = as.numeric(Rh_intercept),
-         G_slope = as.numeric(Rh_slope),
-         G_variance = as.numeric(Rh_variance))
+  mutate(Rh_intercept = as.numeric(Rh_intercept),
+         Rh_slope = as.numeric(Rh_slope),
+         Rh_variance = as.numeric(Rh_variance))
 
 
 
@@ -808,131 +808,220 @@ print(pearsons_results)
 
 # This is ready to run (may need editing after run through everything and edited names with amp)
 
-# Eventually need this to inlcude all the ALS waveform stats, GEDI rh intervals
+# Eventually need this to include all the ALS waveform stats, GEDI rh intervals
 # canopy cover metrics etc
 
 
+# Keep the Degradation variable separate before PCA
+degradation_type <- GEDI2ABPCA$Degradation
+
+# Remove unnecessary columns for PCA, but keep Degradation out for later use
 allGEDI2ABPCA <- allGEDI2AB_ALS_amp %>%
-  mutate(Degradation_numeric = case_when(
-    Degradation == 'Burned 4+' ~ "3",
-    Degradation == 'Burned 1-3' ~ "2",
-    Degradation == 'Logged' ~ "1",
-    Degradation == 'Intact' ~ "0",
-    TRUE ~ NA_character_)) %>% 
-  select(-solar_elevation, -l2b_quality_flag, -pgap_theta_error,
+  select(-Degradation, -solar_elevation, -l2b_quality_flag, -pgap_theta_error,
          -shot_number, -elev_highestreturn, -elev_lowestmode, 
          -sensitivity, -degrade_flag, -geometry, -Age_category,
          -Age_category2, -year, -ALS_CRS, -rh0, -matches("^rhz"),
          -max_amp.x, -max, -validation, -omega, -rh5, -rh10, -rh15,
          -rh20, -rh30, -rh35, -rh40, -rh45, -rh55, -rh60, -rh65, -rh70, 
-         -rh80, -rh85, -rh90, -rh95, -rh97, -rh98, -Degradation, -max_amp.y,
-         -z_kurt, -z_skew) #- forest_age, -burn_freq)
+         -rh80, -rh85, -rh90, -rh95, -rh97, -rh98, -max_amp.y,
+         -z_kurt, -z_skew)
 
-allGEDI2ABPCA <- st_drop_geometry(allGEDI2ABPCA)
-
-allGEDI2ABPCA$G_intercept <- as.numeric(allGEDI2ABPCA$G_intercept)
-allGEDI2ABPCA$G_slope <- as.numeric(allGEDI2ABPCA$G_slope)
-allGEDI2ABPCA$G_variance <- as.numeric(allGEDI2ABPCA$G_variance)
-allGEDI2ABPCA$Degradation_numeric <- as.numeric(allGEDI2ABPCA$Degradation_numeric)
-allGEDI2ABPCA$n_peaks <- as.numeric(allGEDI2ABPCA$n_peaks)
-
-str(allGEDI2ABPCA)
+# Additional cleanup if needed
+allGEDI2ABPCA <- allGEDI2ABPCA %>%
+  select(-modis_treecover, -cancov, -forest_age,
+         -burn_freq) 
 
 
-# Standardize data and run PCA analysis
-scaled_data <- scale(allGEDI2ABPCA)
+
+## For smaller/ more evenly distributed dataset
+GEDI2A_no_geom <- st_drop_geometry(GEDI2AB)
+allGEDI2AB_ALS_amp_no_geom <- st_drop_geometry(allGEDI2AB_ALS_amp)
+
+# Identify common columns between the two datasets
+common_columns <- intersect(names(GEDI2A_no_geom), names(allGEDI2AB_ALS_amp_no_geom))
+common_columns <- setdiff(common_columns, "shot_number")  # Exclude 'shot_number' from removal
+
+# Remove the duplicate columns from the larger dataset
+allGEDI2AB_ALS_amp_clean <- allGEDI2AB_ALS_amp_no_geom %>%
+  select(-all_of(common_columns))
+
+
+# Remove geometry
+allGEDI2ABPCA <- allGEDI2ABPCA %>%
+  st_drop_geometry()
+
+# Standardize the data for PCA
+scaled_data <- scale(GEDI2ABPCA)
+
+# Run PCA on the numeric data
 pca_result <- prcomp(scaled_data, center = TRUE, scale. = TRUE)
 
-#  Summary of the variance explained by each principal component
-summary(pca_result)
-
-# Extract loadings for the first few PCs for Burned data
-loadings_pca <- pca_result$rotation[, 1:3]  # Adjust the number (e.g., 1:3) for the desired number of PCs
-print(loadings_pca)
-
-
-# Plotly graphs to show degradation type with overall PCA results
+pca_result
+# Convert PCA components to a data frame
 components <- as.data.frame(pca_result$x)
-loadings <- (pca_result)$rotation
 
-# Extract degradation types
-degradation_type <- allGEDI2ABPCA$Degradation_numeric
+# Add the degradation type back to the components dataframe
+components$Degradation <- as.factor(degradation_type)
 
-# Create a color palette for degradation types
-colors <- c("#92c5de", "#0073e6", "#e9a2b4", "#ca0020")
+# Set color palette for degradation types
+colors <- c("#e9a2b4", "#ca0020", "#92c5de", "#0073e6")
 
-# Reverse PC2 to match the example
+# Reverse PC2 for visual consistency
 components$PC2 <- -components$PC2
 
-# Create the plot
-fig <- plot_ly(components, x = ~PC1, y = ~PC2, color = ~degradation_type, 
-               colors = colors, type = 'scatter', mode = 'markers') %>%
+# Plot 1: Full Biplot with All Loadings
+scale <- 20  # Adjust arrow length scale
+biplot_full <- ggplot(data = components, aes(x = PC1, y = PC2)) +
+  geom_point(aes(color = Degradation), size = 1.5, shape = 19, alpha = 0.9) +
+  geom_segment(data = as.data.frame(pca_result$rotation), 
+               aes(x = 0, y = 0, xend = PC1 * scale, yend = PC2 * scale), 
+               arrow = arrow(length = unit(0.3, "cm"), type = "open", angle = 25), 
+               size = 1, color = "darkblue") +
+  geom_text_repel(data = as.data.frame(pca_result$rotation), 
+                  aes(x = PC1 * scale, y = PC2 * scale, label = rownames(pca_result$rotation)), 
+                  size = 4, color = "black", max.overlaps = 10, 
+                  box.padding = 0.35, point.padding = 0.5) +
+  scale_color_manual(values = colors) +
+  labs(title = "Biplot - PCA (Full)", x = "PC1", y = "PC2", color = "Degradation Type") +
+  theme_minimal()
+
+# Display the full biplot
+print(biplot_full)
+
+# Calculate the magnitude of each loading vector
+loadings_magnitude <- sqrt(pca_result$rotation[, 1]^2 + pca_result$rotation[, 2]^2)
+
+# Add the magnitudes to the loadings as a column for sorting
+loadings_with_magnitude <- as.data.frame(pca_result$rotation)
+loadings_with_magnitude$Magnitude <- loadings_magnitude
+
+# Sort by magnitude (descending) and select the top 5 loadings
+top_5_loadings <- loadings_with_magnitude %>%
+  arrange(desc(Magnitude)) %>%
+  head(5)
+
+# Select the remaining loadings after the top 5
+remaining_loadings <- loadings_with_magnitude %>%
+  arrange(desc(Magnitude)) %>%
+  slice(6:n())
+
+# Plot 2: Top 5 Loadings Based on Magnitude
+biplot_top5 <- ggplot(data = components, aes(x = PC1, y = PC2)) +
+  geom_point(aes(color = Degradation), size = 2, shape = 19, alpha = 0.7) +
+  geom_segment(data = top_5_loadings, 
+               aes(x = 0, y = 0, xend = PC1 * scale, yend = PC2 * scale), 
+               arrow = arrow(length = unit(0.3, "cm"), type = "open", angle = 25), 
+               size = 1.2, color = "darkblue") +
+  geom_text_repel(data = top_5_loadings, 
+                  aes(x = PC1 * scale, y = PC2 * scale, label = rownames(top_5_loadings)), 
+                  size = 4, color = "black", max.overlaps = 15, 
+                  box.padding = 0.35, point.padding = 0.5) +
+  scale_color_manual(values = colors) +
+  labs(title = "Biplot - PCA (Top 5 Loadings)", x = "PC1", y = "PC2", color = "Degradation Type") +
+  theme_minimal()
+
+print(biplot_top5)
+
+# Plot 3: Remaining Loadings After Top 5
+biplot_remaining <- ggplot(data = components, aes(x = PC1, y = PC2)) +
+  geom_point(aes(color = Degradation), size = 2, shape = 19, alpha = 0.7) +
+  geom_segment(data = remaining_loadings, 
+               aes(x = 0, y = 0, xend = PC1 * scale, yend = PC2 * scale), 
+               arrow = arrow(length = unit(0.3, "cm"), type = "open", angle = 25), 
+               size = 1.2, color = "darkblue") +
+  geom_text_repel(data = remaining_loadings, 
+                  aes(x = PC1 * scale, y = PC2 * scale, label = rownames(remaining_loadings)), 
+                  size = 4, color = "black", max.overlaps = 10, 
+                  box.padding = 0.35, point.padding = 0.5) +
+  scale_color_manual(values = colors) +
+  labs(title = "Biplot - PCA (Remaining Loadings)", x = "PC1", y = "PC2", color = "Degradation Type") +
+  theme_minimal()
+
+print(biplot_remaining)
+
+# Summary Plot for PC1
+
+# Extract explained variance
+explained_variance_ratio <- summary(pca_result)[["importance"]]['Proportion of Variance',]
+explained_variance_ratio <- 100 * explained_variance_ratio
+
+# Define axis formatting (no lines and grid customization)
+axis <- list(showline=FALSE,
+             zeroline=FALSE,
+             gridcolor='#ffff',
+             ticklen=4,
+             titlefont=list(size=13))
+
+# Create the scatterplot matrix (SPLOM) using plotly
+fig <- components %>%
+  plot_ly() %>%
+  add_trace(
+    type = 'splom',
+    dimensions = list(
+      list(label=paste('PC 1 (', toString(round(explained_variance_ratio[1], 1)), '%)', sep = ''), values=~PC1),
+      list(label=paste('PC 2 (', toString(round(explained_variance_ratio[2], 1)), '%)', sep = ''), values=~PC2),
+      list(label=paste('PC 3 (', toString(round(explained_variance_ratio[3], 1)), '%)', sep = ''), values=~PC3),
+      list(label=paste('PC 4 (', toString(round(explained_variance_ratio[4], 1)), '%)', sep = ''), values=~PC4)
+    ),
+    color = ~Degradation,  # Color based on degradation type
+    colors <- c("#92c5de", "#0073e6", "#e9a2b4", "#ca0020")
+  ) %>%
+  style(diagonal = list(visible = FALSE)) %>%
   layout(
-    plot_bgcolor = "white",  # Set background color to white
-    xaxis = list(title = "PC1"),
-    yaxis = list(title = "PC2")
-  )
+    legend = list(title = list(text = 'Degradation Type')),
+    hovermode = 'closest',
+    dragmode = 'select',
+    plot_bgcolor = 'rgba(240,240,240, 0.95)',  # Light grey background
+    xaxis = list(domain = NULL, showline = F, zeroline = F, gridcolor = '#ffff', ticklen = 4),
+    yaxis = list(domain = NULL, showline = F, zeroline = F, gridcolor = '#ffff', ticklen = 4),
+    xaxis2 = axis,
+    xaxis)
 
-# Add loadings
-features <- colnames(allGEDI2ABPCA)
-for (i in seq_along(features)) {
-  fig <- fig %>%
-    add_segments(x = 0, xend = loadings[i, 1], y = 0, yend = loadings[i, 2], 
-                 line = list(color = 'black'), inherit = FALSE, showlegend = FALSE) %>%
-    add_annotations(x = loadings[i, 1], y = loadings[i, 2], ax = 0, ay = 0, 
-                    text = features[i], xanchor = 'center', yanchor = 'bottom', 
-                    showarrow = FALSE, showlegend = FALSE)
-}
-
+# Display the figure
 fig
 
 
+#####TEST FOR GEDI SMALLER SAMPLE
 
-# Install and load the ggrepel package if not already done
-if (!requireNamespace("ggrepel", quietly = TRUE)) {
-  install.packages("ggrepel")
-}
-library(ggrepel)
+# Keep the Degradation variable separate before PCA
+degradation_type <- GEDI2ABPCA$Degradation
+
+# Merge
+GEDI2ABPCA <- GEDI2A_no_geom %>%
+  left_join(allGEDI2AB_ALS_amp_clean, by = "shot_number")
+
+str(GEDI2ABPCA)
+rm(allGEDI2A_no_geom, allGEDI2AB_ALS_amp_no_geom, common_columns)
+
+
+GEDI2ABPCA <- GEDI2ABPCA %>%
+  select(-Degradation, -solar_elevation, -l2b_quality_flag, -pgap_theta_error,
+         -shot_number, -elev_highestreturn, -elev_lowestmode, 
+         -sensitivity, -degrade_flag, -Age_category,
+         -Age_category2, -year, -ALS_CRS, -rh0, -matches("^rhz"),
+         -max_amp.x, -max, -validation, -omega, -rh5, -rh10, -rh15,
+         -rh20, -rh30, -rh35, -rh40, -rh45, -rh55, -rh60, -rh65, -rh70, 
+         -rh80, -rh85, -rh90, -rh95, -rh97, -rh98, -max_amp.y,
+         -z_kurt, -z_skew, -rh0, -rh5,-rh10, -rh15, -rh20, -rh30, -rh35,  
+         -rh40, -rh45, -rh55, -rh60, -rh65, -rh70, -rh80, -rh85, 
+         -rh90,  -rh97, -rh98, -rh99, -rh_min, -rh_max)
+
+
+# Additional cleanup if needed
+GEDI2ABPCA <- GEDI2ABPCA %>%
+  select(-modis_treecover, -cancov, -forest_age,
+         -burn_freq) 
 
 
 
 
-# Define a custom scale for loadings adjustment
-scale <- 20  # Increase the scale to make the arrows longer
 
-# Create a base ggplot object with scores and degradation types
-biplot <- ggplot(data = components, aes(x = PC1, y = PC2)) +
-  
-  # Add points for each degradation type
-  geom_point(aes(color = degradation_type), size = 2, shape = 19, alpha = 0.7) +  # Slight transparency
-  
-  # Add segments for loadings with longer arrows
-  geom_segment(
-    data = as.data.frame(loadings), 
-    aes(x = 0, y = 0, xend = PC1 * scale, yend = PC2 * scale), 
-    arrow = arrow(length = unit(0.3, "cm"), type = "open", angle = 25),
-    size = 1.2, color = "darkblue"
-  ) +
-  
-  # Add labels for the loadings with larger text size
-  geom_text_repel(
-    data = as.data.frame(loadings), 
-    aes(x = PC1 * scale, y = PC2 * scale, label = rownames(loadings)), 
-    size = 4, color = "black", max.overlaps = 10, # Adjust size and reduce overlap
-    box.padding = 0.35, point.padding = 0.5
-  ) +
-  
-  # Apply custom colors for degradation types
-  scale_color_manual(values = colors) +
-  
-  # Set labels and theme
-  labs(title = "Biplot - PCA", x = "PC1", y = "PC2", color = "Degradation Type") +
-  
-  # Minimal clean theme
-  theme_minimal()
 
-# Display the biplot
-print(biplot)
+
+
+
+
+
 
 
 
@@ -974,12 +1063,6 @@ print(loadings_Burned4_6)
 print(loadings_Burned1_3)
 print(loadings_Logged)
 print(loadings_Intact)
-
-# Plot PCA results for each subset
-plot(pca_Burned4_6, main = "PCA for Burned 4-6 Data")
-plot(pca_Burned1_3, main = "PCA for Burned 1-3 Data")
-plot(pca_Logged, main = "PCA for Logged Data")
-plot(pca_Intact, main = "PCA for Intact Data")
 
 
 
@@ -1437,12 +1520,43 @@ plot(wave_slope2)
 
 
 
+rh96_violin <- GEDI2A_amp_deg %>%
+  ggplot(aes(x = Degradation, y = rh96, fill = Degradation)) +
+  geom_violin(color = "black", width = 1.3, alpha = 0.9, scale = "width") +  
+  labs(title = "Relative height across degradation", x = "Degradation type", y = "Reelative height (m)") +
+  theme_bw() +
+  scale_fill_manual(values = c("Burned 1-3" = "#e9a2b4", 
+                               "Burned 4+" = "#ca0020", 
+                               "Intact" = "#92c5de", 
+                               "Logged" = "#0073e6")) +  # Custom colors
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    legend.position = "none"
+  )
+
+plot(rh96_violin)
 
 
 
 
 
+wave_slope <- allGEDI2AB_ALS_amp %>%
+  ggplot(aes(x = Degradation, y = W_slope, fill = Degradation)) +
+  geom_violin(color = "black", width = 1.3, alpha = 0.9, scale = "width") +  # Adjust the scale
+  labs(title = "Gradient slope of waveform profile", x = "Degradation type", y = "Slope") +
+  theme_bw() +
+  scale_fill_manual(values = c("Burned 1-3" = "#e9a2b4", 
+                               "Burned 4+" = "#ca0020", 
+                               "Intact" = "#92c5de", 
+                               "Logged" = "#0073e6")) +  # Custom colors
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    legend.position = "none"
+  )
 
+plot(wave_slope)
 
 
 
