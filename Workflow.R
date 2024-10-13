@@ -19,7 +19,7 @@ options(mapviewMaxPixels = 1000000000)
 
 
 
-# ----- Pre-Process ALS done -------- 
+# ----- Pre-Process ALS DONE -------- 
 # ALS data is sourced from Sustainable Landscapes Brazil project (2018), downloaded into coordinate reference system (CRS)
 # regions with the format 'DAAC_year_CRS'. Data is also sourced from Permian Global in 2023 for Rio Cautario. 
 # ALS data is combined but catalogs are separated by their CRS.
@@ -75,7 +75,7 @@ rm(DAAC18_19S, CAUT23_20S, DAAC1821_21S, retile_DAAC18_19S, retile_CAUT23_20S,
    dtm_DAAC18_19S, dtm_CAUT23_20S, dtm_DAAC1821_21S)
 
 
-# ----------- GEDI download  ----------------
+# ----------- GEDI download DONE ----------------
 
 # GEDI files are downloaded to correspond with ALS data extent e.g. DAAC ALS 2018 = 2019-01-01 to 2019-12-31
 # DAAC 2021 = 2020-06-01 to 2022-06-01 and CAUTARIO 2023 = 2022-01-01 to 2024-06-01 (year gap in 23-24 collection)
@@ -245,17 +245,17 @@ rm(allGEDI2A, allGEDI2B, allGEDI4A, allGEDI2A_no_geom, allGEDI2B_no_geom,
 
 
 
-# ------ GEDI regressions done ---------
+# ------ GEDI rh/ waveform regressions CHECK INTEGRATION ---------
 
 # Summarise relative height rh0-100 metrics with linear regression model
-# Outputs intercept, slope and variance of the 2A waveform
+# Outputs intercept, slope and variance of the 2A relative height profile
 
 # Select only relative height data and unique identifier, transforming dataset
 GEDI2AB_trans <- allGEDI2AB %>%
   as.data.frame() %>%
   select(shot_number, starts_with("rh"))
 
-# Simple summary stats of the rh waveforms
+# Simple summary stats of the rh profile
 
 summary_df <- apply(GEDI2AB_trans, 1, wv_summary_stats)
 
@@ -287,44 +287,106 @@ result_df <- result_df %>%
          Rh_slope = as.numeric(Rh_slope),
          Rh_variance = as.numeric(Rh_variance))
 
+# Remerge results with original GEDI2A dataframe and name GEDI regressions
+
+allGEDI2AB_reg <- left_join(allGEDI2AB, summary_df, by = "shot_number")
+allGEDI2AB_reg <- left_join(allGEDI2AB_reg, result_df, by = "shot_number")
+
+sf::st_write(allGEDI2AB_reg, "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI2AB_regressions.fgb", delete_dsn = TRUE, overwrite = TRUE)
+# allGEDI2AB_reg <- read_sf("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI2AB_regressions.fgb")
+
+# Tidy the environment
+rm(GEDI2AB_trans, summary_df, result_df, maxamp_dt, maxamp_results, shot_numbers)
+
+
+
+
+
+
+# Summarise cumulative energy proxy amplitude metrics with linear regression model
+# Outputs intercept, slope and variance of the 2A waveform stats
+
+# Select only amp data and unique identifier, transforming datbase
+allGEDI2A_trans_amp <- allGEDI2A_cum %>%
+  select(shot_number, interval, amp) %>%         
+  pivot_wider(
+    names_from = interval,                       
+    names_prefix = "amp",                       
+    values_from = amp 
+  ) %>%
+  distinct(shot_number, .keep_all = TRUE) 
+
+# Apply regression function to cumulative waveforms
+result_df_amp <- apply(allGEDI2A_trans_amp, 1, rh_linear_regression)
+
+# Convert the result to a dataframe and set column names
+result_df_amp <- t(data.frame(result_df_amp))
+result_df_amp  <- as.data.frame(result_df_amp, stringsAsFactors = FALSE)
+colnames(result_df_amp) <- c("shot_number", "W_intercept", "W_slope", "W_variance")
+
+result_df_amp <- result_df_amp %>%
+  mutate(W_intercept = as.numeric(W_intercept),
+         W_slope = as.numeric(W_slope),
+         W_variance = as.numeric(W_variance))
 
 
 # Using waveform lidar package preferred format for additional summary parameters
 # Convert data.frame to data.table for easier manipulation
 
-GEDI2AB_trans <- as.data.table(GEDI2AB_trans)
+GEDI2AB_trans_amp <- as.data.table(GEDI2AB_trans_amp)
 
 # Separate the shot_number from the waveform data, removing shot column
-shot_numbers <- GEDI2AB_trans$shot_number
-waveform_data <- GEDI2AB_trans[, -1, with = FALSE] 
+shot_numbers <- GEDI2AB_trans_amp$shot_number
+waveform_data <- GEDI2AB_trans_amp[, -1, with = FALSE] 
 
 # Add an index column at the beginning ensuring the index is the first column
 waveform_data[, index := .I]
 setcolorder(waveform_data, c("index", setdiff(names(waveform_data), "index")))
 
-# Apply maxamp function
+# Apply lpeak
+lpeak_results <- apply(waveform_data, 1, safe_lpeak)
+lpeak_results <- lapply(lpeak_results, function(x) {
+  if (!is.null(x$peaks)) {
+    # Summarize by counting the number of TRUE values
+    return(data.frame(n_peaks = sum(x$peaks, na.rm = TRUE)))
+  } else {
+    return(data.frame(n_peaks = NA))
+  }
+})
+lpeak_dt <- rbindlist(lpeak_results, fill = TRUE)
+
+# Apply maxamp
 maxamp_results <- apply(waveform_data, 1, safe_maxamp)
 maxamp_dt <- rbindlist(maxamp_results, fill = TRUE)
 
 # Reattach shot numbers
-maxamp_dt <- cbind(shot_number = shot_numbers, maxamp_dt)
-maxamp_dt <- as.data.frame(maxamp_dt)
-
+waveform_results <- cbind(shot_number = shot_numbers, lpeak_dt, maxamp_dt)
+waveform_results  <- as.data.frame(waveform_results)
 
 # Remerge results with original GEDI2A dataframe and name GEDI regressions
 
-allGEDI2AB_reg <- left_join(allGEDI2AB, summary_df, by = "shot_number")
-allGEDI2AB_reg <- left_join(allGEDI2AB_reg, result_df, by = "shot_number")
-allGEDI2AB_reg <- left_join(allGEDI2AB_reg, maxamp_dt, by = "shot_number")
-
-sf::st_write(allGEDI2AB_reg, "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI2AB_regressions.fgb", delete_dsn = TRUE, overwrite = TRUE)
-# allGEDI2AB_reg <- read_sf("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI2AB_regressions.fgb")
+allGEDI2A_amp <- left_join(allGEDI2A, result_df_amp, by = "shot_number")
+allGEDI2A_amp <- left_join(allGEDI2A_amp, waveform_results, by = "shot_number")
+allGEDI2A_amp <- left_join(allGEDI2A_amp, allGEDI2A_trans_amp, by = "shot_number")
 
 
-# Tidy the environment
-rm(GEDI2AB_trans, summary_df, result_df, maxamp_dt, maxamp_results, shot_numbers)
+allGEDI2A_amp <- allGEDI2A_amp %>%
+  select(shot_number, W_intercept, W_slope, W_variance,
+         max_amp, n_peaks, starts_with("amp"), matches("^rh([0-9]|[1-9][0-9]|100)$")) %>%
+  select(-amp0)
 
-# ------ Extracting ALS metrics within GEDI footprints done------
+
+sf::st_write(allGEDI2A_amp, "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI2A_amp.fgb", delete_dsn = TRUE, overwrite = TRUE)
+# allGEDI2A_amp <- read_sf("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI2A_amp.fgb")
+
+rm(result_df_amp, shot_numbers, waveform_data, lpeak_dt, lpeak_results,
+   maxamp_results, maxamp_dt, waveform_results)
+
+
+### INTEGRATE DATAFRAMES HERE
+# ALL OF THE FOLLOWING ALLGEDI2AB_REG WILL HAVE THE OLD G_INTERCEPT UP UNTIL THE PCA 
+
+# ------ Extracting ALS metrics within GEDI footprints DONE------
 
 # As the ALS data spans different parts of the Amazon rainforest, they are separated in folders by their
 # CRS. Each ALS folder must therefore extract data from the GEDI footprints separately before being merged.
@@ -407,7 +469,7 @@ sf::st_write(allGEDI2AB_ALS, "/Users/emilydoyle/Documents/workspace_data/Doyle_e
 rm(merged_df, DAAC18_19Smetrics, DAAC1821_21Smetrics, CAUT23_20Smetrics, allGEDI2AB_reg_19S, 
     allGEDI2AB_reg_20S, allGEDI2AB_reg_21S, DAAC18_19Sfinal, DAAC1821_21Sfinal, CAUT23_20Sfinal)
 
-# ------- Forest spectral classification done---------
+# ------- Forest spectral classification DONE---------
 
 # (1) Silva et al (2020) secondary forest of Brazil maps
 
@@ -801,19 +863,36 @@ print(pearsons_results)
 
 
 
-# -------- Principle Component Analysis ---------
+# -------- Principle Component Analysis INTEGRATION OF AMP---------
 
 
-# TESTING FOR THE PCA
+# UNTIL HAVE RUN THROUGH ALL DATA TO COMBINE NEW AMP GEDI AND DEGRADATION
+
+# For the PCA until have updated (removed max.amp.x)
+
+allGEDI2A_amp_PCA <- allGEDI2A_amp %>%
+  select(shot_number, W_intercept, W_slope, W_variance,
+         max_amp, n_peaks)
+
+allGEDI2A_amp_PCA_nogeom <- st_set_geometry(allGEDI2A_amp_PCA, NULL)
+
+# Merge amp dataset with overall allGEDI2AB_ALS
+allGEDI2AB_ALS_amp <- allGEDI2AB_ALS %>%
+  left_join(allGEDI2A_amp_PCA_nogeom, by = "shot_number") %>%
+  select(-max_amp.x) %>%
+  rename(max_amp = max_amp.y) %>%
+  rename(Rh_intercept = G_intercept,
+         Rh_slope = G_slope,
+         Rh_variance = G_variance)
+
+rm(allGEDI2A_amp_PCA, allGEDI2A_amp_PCA_nogeom)
+
+
 
 # This is ready to run (may need editing after run through everything and edited names with amp)
 
-# Eventually need this to include all the ALS waveform stats, GEDI rh intervals
-# canopy cover metrics etc
-
-
 # Keep the Degradation variable separate before PCA
-degradation_type <- GEDI2ABPCA$Degradation
+degradation_type <- allGEDI2AB_ALS_amp$Degradation
 
 # Remove unnecessary columns for PCA, but keep Degradation out for later use
 allGEDI2ABPCA <- allGEDI2AB_ALS_amp %>%
@@ -821,43 +900,77 @@ allGEDI2ABPCA <- allGEDI2AB_ALS_amp %>%
          -shot_number, -elev_highestreturn, -elev_lowestmode, 
          -sensitivity, -degrade_flag, -geometry, -Age_category,
          -Age_category2, -year, -ALS_CRS, -rh0, -matches("^rhz"),
-         -max_amp.x, -max, -validation, -omega, -rh5, -rh10, -rh15,
+         -max, -validation, -omega, -rh5, -rh10, -rh15,
          -rh20, -rh30, -rh35, -rh40, -rh45, -rh55, -rh60, -rh65, -rh70, 
-         -rh80, -rh85, -rh90, -rh95, -rh97, -rh98, -max_amp.y,
-         -z_kurt, -z_skew)
+         -rh80, -rh85, -rh90, -rh95, -rh97, -rh98, -z_kurt, -z_skew,
+         -modis_treecover, -cancov, -forest_age, -burn_freq, -max_amp)
 
-# Additional cleanup if needed
+
 allGEDI2ABPCA <- allGEDI2ABPCA %>%
-  select(-modis_treecover, -cancov, -forest_age,
-         -burn_freq) 
-
-
-
-## For smaller/ more evenly distributed dataset
-GEDI2A_no_geom <- st_drop_geometry(GEDI2AB)
-allGEDI2AB_ALS_amp_no_geom <- st_drop_geometry(allGEDI2AB_ALS_amp)
-
-# Identify common columns between the two datasets
-common_columns <- intersect(names(GEDI2A_no_geom), names(allGEDI2AB_ALS_amp_no_geom))
-common_columns <- setdiff(common_columns, "shot_number")  # Exclude 'shot_number' from removal
-
-# Remove the duplicate columns from the larger dataset
-allGEDI2AB_ALS_amp_clean <- allGEDI2AB_ALS_amp_no_geom %>%
-  select(-all_of(common_columns))
-
+  select(-rh99, -rh100, -rh_max, -rh25, -n_peaks, -rh_mean, -rh50, -W_variance)
+         #-W_intercept, -W_slope) #-W_variance) #-Rh_slope, -Rh_variance, -Rh_intercept)
 
 # Remove geometry
 allGEDI2ABPCA <- allGEDI2ABPCA %>%
   st_drop_geometry()
 
+# Convert character and integer columns to numeric
+allGEDI2ABPCA <- allGEDI2ABPCA %>%
+  mutate(
+    W_intercept = as.numeric(W_intercept),
+    W_slope = as.numeric(W_slope),
+    #W_variance = as.numeric(W_variance),
+    Rh_intercept = as.numeric(Rh_intercept),
+    Rh_slope = as.numeric(Rh_slope),
+    Rh_variance = as.numeric(Rh_variance)
+  )
+
 # Standardize the data for PCA
-scaled_data <- scale(GEDI2ABPCA)
+scaled_data <- scale(allGEDI2ABPCA)
 
 # Run PCA on the numeric data
 pca_result <- prcomp(scaled_data, center = TRUE, scale. = TRUE)
 
-pca_result
-# Convert PCA components to a data frame
+summary(pca_result)
+
+
+
+
+# Sort loadings to see potentially too similar loadings
+loadings_pca <- pca_result$rotation[, c(1, 2)]  # PC1 is the first column, PC2 is the second
+loadings_df <- as.data.frame(loadings_pca)
+loadings_df$Variable <- rownames(loadings_pca)
+
+# Sort loadings by PC1 in descending order
+sorted_PC1 <- loadings_df %>%
+  select(Variable, PC1) %>%
+  arrange(desc(PC1))
+
+# Sort loadings by PC2 in descending order
+sorted_PC2 <- loadings_df %>%
+  select(Variable, PC2) %>%
+  arrange(desc(PC2))
+
+print(sorted_PC1)
+print(sorted_PC2)
+
+
+
+# See explaination of variance of top contributing variables
+loadings <- pca_result$rotation
+pc1_loadings <- loadings[, 1]
+pc2_loadings <- loadings[, 2]
+
+# Sort PC loadings by absolute value
+sorted_pc1_loadings <- sort(abs(pc1_loadings), decreasing = TRUE)
+sorted_pc2_loadings <- sort(abs(pc2_loadings), decreasing = TRUE)
+
+sorted_pc1_loadings
+sorted_pc2_loadings
+
+
+# View outputs
+# Convert PCA components to a data frame 
 components <- as.data.frame(pca_result$x)
 
 # Add the degradation type back to the components dataframe
@@ -872,74 +985,290 @@ components$PC2 <- -components$PC2
 # Plot 1: Full Biplot with All Loadings
 scale <- 20  # Adjust arrow length scale
 biplot_full <- ggplot(data = components, aes(x = PC1, y = PC2)) +
-  geom_point(aes(color = Degradation), size = 1.5, shape = 19, alpha = 0.9) +
+  geom_point(aes(color = Degradation), size = 1, shape = 19, alpha = 0.8) +
   geom_segment(data = as.data.frame(pca_result$rotation), 
                aes(x = 0, y = 0, xend = PC1 * scale, yend = PC2 * scale), 
                arrow = arrow(length = unit(0.3, "cm"), type = "open", angle = 25), 
-               size = 1, color = "darkblue") +
+               size = 0.8, color = "darkblue") +
   geom_text_repel(data = as.data.frame(pca_result$rotation), 
                   aes(x = PC1 * scale, y = PC2 * scale, label = rownames(pca_result$rotation)), 
-                  size = 4, color = "black", max.overlaps = 10, 
+                  size = 4, color = "black", max.overlaps = 5, 
                   box.padding = 0.35, point.padding = 0.5) +
   scale_color_manual(values = colors) +
-  labs(title = "Biplot - PCA (Full)", x = "PC1", y = "PC2", color = "Degradation Type") +
+  labs(title = "Biplot - PCA", x = "PC1", y = "PC2", color = "Degradation Type") +
   theme_minimal()
 
 # Display the full biplot
 print(biplot_full)
 
-# Calculate the magnitude of each loading vector
-loadings_magnitude <- sqrt(pca_result$rotation[, 1]^2 + pca_result$rotation[, 2]^2)
 
-# Add the magnitudes to the loadings as a column for sorting
-loadings_with_magnitude <- as.data.frame(pca_result$rotation)
-loadings_with_magnitude$Magnitude <- loadings_magnitude
 
-# Sort by magnitude (descending) and select the top 5 loadings
-top_5_loadings <- loadings_with_magnitude %>%
-  arrange(desc(Magnitude)) %>%
-  head(5)
+# Graphs for PC1 axis only 
+pca_result$x[,1]
+pca_result$x[,1][which(degradation_type=="Burned 1-3")]
 
-# Select the remaining loadings after the top 5
-remaining_loadings <- loadings_with_magnitude %>%
-  arrange(desc(Magnitude)) %>%
-  slice(6:n())
+pc1_intact <- hist(pca_result$x[,1][which(degradation_type == "Intact")], 
+  main = "PC1 Intact",       
+  xlab = "PC1 Values",                                    
+  ylab = "Frequency",                                     
+  col = "#92c5de",                                      
+  border = "black",                                      
+  breaks = 20                                            
+)
 
-# Plot 2: Top 5 Loadings Based on Magnitude
-biplot_top5 <- ggplot(data = components, aes(x = PC1, y = PC2)) +
-  geom_point(aes(color = Degradation), size = 2, shape = 19, alpha = 0.7) +
-  geom_segment(data = top_5_loadings, 
+pc2_intact <- hist(pca_result$x[,2][which(degradation_type=="Intact")])
+
+pc1_logged <- hist(pca_result$x[,1][which(degradation_type=="Logged")])
+pc2_logged <- hist(pca_result$x[,2][which(degradation_type=="Logged")])
+
+pc1_burn1_3 <- hist(pca_result$x[,1][which(degradation_type=="Burned 1-3")])
+pc2_burn1_3 <- hist(pca_result$x[,2][which(degradation_type=="Burned 1-3")])
+
+pc1_burn4_6 <- hist(pca_result$x[,1][which(degradation_type=="Burned 4+")])
+
+# Define common x and y axis limits
+x_limits <- c(-10, 5)
+
+# Extract the principal components data into a dataframe
+pca_data <- as.data.frame(pca_result$x)
+
+# Create histograms using ggplot2 for each degradation type
+pc1_intact <- ggplot(pca_data[degradation_type == "Intact", ], aes(x = PC1)) +
+  geom_histogram(binwidth = 0.5, fill = "#92c5de") +
+  labs(x = "PC1 Values", y = "Frequency") +
+  xlim(x_limits) +
+  theme_bw() 
+
+pc1_logged <- ggplot(pca_data[degradation_type == "Logged", ], aes(x = PC1)) +
+  geom_histogram(binwidth = 0.5, fill = "#0073e6") +
+  labs(x = "PC1 Values", y = "Frequency") +
+  xlim(x_limits) +
+  theme_bw() 
+
+pc1_burn1_3 <- ggplot(pca_data[degradation_type == "Burned 1-3", ], aes(x = PC1)) +
+  geom_histogram(binwidth = 0.5, fill = "#e9a2b4") +
+  labs(x = "PC1 Values", y = "Frequency") +
+  xlim(x_limits) +
+  theme_bw() 
+
+pc1_burn4_6 <- ggplot(pca_data[degradation_type == "Burned 4+", ], aes(x = PC1)) +
+  geom_histogram(binwidth = 0.5, fill = "#ca0020") +
+  labs(x = "PC1 Values", y = "Frequency") +
+  xlim(x_limits) +
+  theme_bw() 
+
+# Combine all plots into a single panel using patchwork
+fig_4 <- (pc1_burn4_6 | pc1_burn1_3 | pc1_logged | pc1_intact)
+
+# Display the combined plot
+print(fig_4)
+
+    
+pc2_intact <- ggplot(pca_data[degradation_type == "Intact", ], aes(x = PC2)) +
+  geom_histogram(binwidth = 0.5, fill = "#92c5de") +
+  labs(x = "PC2 Values", y = "Frequency") +
+  xlim(x_limits) +
+  theme_bw() 
+
+pc2_logged <- ggplot(pca_data[degradation_type == "Logged", ], aes(x = PC2)) +
+  geom_histogram(binwidth = 0.5, fill = "#0073e6") +
+  labs(x = "PC2 Values", y = "Frequency") +
+  xlim(x_limits) +
+  theme_bw() 
+
+pc2_burn1_3 <- ggplot(pca_data[degradation_type == "Burned 1-3", ], aes(x = PC2)) +
+  geom_histogram(binwidth = 0.5, fill = "#e9a2b4") +
+  labs(x = "PC2 Values", y = "Frequency") +
+  xlim(x_limits) +
+  theme_bw() 
+
+pc2_burn4_6 <- ggplot(pca_data[degradation_type == "Burned 4+", ], aes(x = PC2)) +
+  geom_histogram(binwidth = 0.5, fill = "#ca0020") +
+  labs(x = "PC2 Values", y = "Frequency") +
+  xlim(x_limits) +
+  theme_bw() 
+
+
+# Combine all plots into a single panel using patchwork
+fig_5 <- (pc2_burn4_6 | pc2_burn1_3 | pc2_logged | pc2_intact)
+
+# Display the combined plot
+print(fig_5)
+
+fig_6 <- (fig_4) / (fig_5)
+print(fig_6)
+
+pc3_intact <- ggplot(pca_data[degradation_type == "Intact", ], aes(x = PC3)) +
+  geom_histogram(binwidth = 0.5, fill = "#92c5de") +
+  labs(x = "PC3 Values", y = "Frequency") +
+  xlim(x_limits) +
+  theme_bw() 
+
+pc3_logged <- ggplot(pca_data[degradation_type == "Logged", ], aes(x = PC3)) +
+  geom_histogram(binwidth = 0.5, fill = "#0073e6") +
+  labs(x = "PC3 Values", y = "Frequency") +
+  xlim(x_limits) +
+  theme_bw() 
+
+pc3_burn1_3 <- ggplot(pca_data[degradation_type == "Burned 1-3", ], aes(x = PC3)) +
+  geom_histogram(binwidth = 0.5, fill = "#e9a2b4") +
+  labs(x = "PC3 Values", y = "Frequency") +
+  xlim(x_limits) +
+  theme_bw() 
+
+pc3_burn4_6 <- ggplot(pca_data[degradation_type == "Burned 4+", ], aes(x = PC3)) +
+  geom_histogram(binwidth = 0.5, fill = "#ca0020") +
+  labs(x = "PC3 Values", y = "Frequency") +
+  xlim(x_limits) +
+  theme_bw() 
+
+fig_7 <- (pc3_burn4_6 | pc3_burn1_3 | pc3_logged | pc3_intact)
+
+
+fig_8 <- (fig_4) / (fig_5) / (fig_7)
+print(fig_8)
+
+
+
+
+
+
+
+#####---- TEST FOR GEDI SMALLER SAMPLE------
+
+# Keep the Degradation variable separate before PCA
+degradation_type <- GEDI2AB$Degradation
+
+# Merge
+GEDI2ABPCA <- GEDI2A_no_geom %>%
+  left_join(allGEDI2AB_ALS_amp_clean, by = "shot_number")
+
+## For smaller/ more evenly distributed dataset
+GEDI2A_no_geom <- st_drop_geometry(GEDI2AB)
+allGEDI2AB_ALS_amp_no_geom <- st_drop_geometry(allGEDI2AB_ALS_amp)
+
+# Identify common columns between the two datasets
+common_columns <- intersect(names(GEDI2A_no_geom), names(allGEDI2AB_ALS_amp_no_geom))
+common_columns <- setdiff(common_columns, "shot_number")  # Exclude 'shot_number' from removal
+
+# Remove the duplicate columns from the larger dataset
+allGEDI2AB_ALS_amp_clean <- allGEDI2AB_ALS_amp_no_geom %>%
+  select(-all_of(common_columns))
+
+str(GEDI2ABPCA)
+rm(allGEDI2A_no_geom, allGEDI2AB_ALS_amp_no_geom, common_columns)
+
+
+
+GEDI2ABPCA <- GEDI2ABPCA %>%
+  select(-Degradation, -solar_elevation, -l2b_quality_flag, -pgap_theta_error,
+         -shot_number, -elev_highestreturn, -elev_lowestmode, 
+         -sensitivity, -degrade_flag, -Age_category,
+         -Age_category2, -year, -ALS_CRS, -rh0, -matches("^rhz"),
+        -max, -validation, -omega, -rh5, -rh10, -rh15,
+         -rh20, -rh30, -rh35, -rh40, -rh45, -rh55, -rh60, -rh65, -rh70, 
+         -rh80, -rh85, -rh90, -rh95, -rh97, -rh98,
+         -z_kurt, -z_skew, -rh0, -rh5,-rh10, -rh15, -rh20, -rh30, -rh35,  
+         -rh40, -rh45, -rh55, -rh60, -rh65, -rh70, -rh80, -rh85, 
+         -rh90,  -rh97, -rh98, -rh99, -rh_min, -rh_max,
+         -modis_treecover, -cancov, -forest_age,
+         -burn_freq, -max_amp,
+        -rh25, -rh100, -n_peaks, -rh_mean, -rh50, -W_variance)
+
+
+# Convert character and integer columns to numeric
+GEDI2ABPCA <- GEDI2ABPCA %>%
+  mutate(
+    W_intercept = as.numeric(W_intercept),
+    W_slope = as.numeric(W_slope),
+    #W_variance = as.numeric(W_variance),
+    Rh_intercept = as.numeric(Rh_intercept),
+    Rh_slope = as.numeric(Rh_slope),
+    Rh_variance = as.numeric(Rh_variance)
+  )
+
+# Standardize the data for PCA
+scaled_data_1 <- scale(GEDI2ABPCA)
+
+# Run PCA on the numeric data
+pca_result_1 <- prcomp(scaled_data_1, center = TRUE, scale. = TRUE)
+
+summary(pca_result_1)
+
+
+
+
+# Sort loadings to see potentially too similar loadings
+loadings_pca_1 <- pca_result_1$rotation[, c(1, 2)]  # PC1 is the first column, PC2 is the second
+loadings_df_1 <- as.data.frame(loadings_pca_1)
+loadings_df_1$Variable <- rownames(loadings_pca_1)
+
+# Sort loadings by PC1 in descending order
+sorted_PC1_1 <- loadings_df_1 %>%
+  select(Variable, PC1) %>%
+  arrange(desc(PC1))
+
+# Sort loadings by PC2 in descending order
+sorted_PC2_1 <- loadings_df_1 %>%
+  select(Variable, PC2) %>%
+  arrange(desc(PC2))
+
+print(sorted_PC1_1)
+print(sorted_PC2_1)
+
+
+
+# See explaination of variance of top contributing variables
+loadings_1 <- pca_result_1$rotation
+pc1_loadings_1 <- loadings[, 1]
+pc2_loadings_1 <- loadings[, 2]
+
+# Sort PC loadings by absolute value
+sorted_pc1_loadings_1 <- sort(abs(pc1_loadings_1), decreasing = TRUE)
+sorted_pc2_loadings_1 <- sort(abs(pc2_loadings_1), decreasing = TRUE)
+
+sorted_pc1_loadings_1
+sorted_pc2_loadings_1
+
+
+# View outputs
+# Convert PCA components to a data frame 
+components <- as.data.frame(pca_result_1$x)
+
+# Add the degradation type back to the components dataframe
+components$Degradation <- as.factor(degradation_type)
+
+# Set color palette for degradation types
+colors <- c("#e9a2b4", "#ca0020", "#92c5de", "#0073e6")
+
+# Reverse PC2 for visual consistency
+components$PC2 <- -components$PC2
+
+# Plot 1: Full Biplot with All Loadings
+scale <- 20  # Adjust arrow length scale
+biplot_full <- ggplot(data = components, aes(x = PC1, y = PC2)) +
+  geom_point(aes(color = Degradation), size = 1, shape = 19, alpha = 0.8) +
+  geom_segment(data = as.data.frame(pca_result$rotation), 
                aes(x = 0, y = 0, xend = PC1 * scale, yend = PC2 * scale), 
                arrow = arrow(length = unit(0.3, "cm"), type = "open", angle = 25), 
-               size = 1.2, color = "darkblue") +
-  geom_text_repel(data = top_5_loadings, 
-                  aes(x = PC1 * scale, y = PC2 * scale, label = rownames(top_5_loadings)), 
-                  size = 4, color = "black", max.overlaps = 15, 
+               size = 0.8, color = "darkblue") +
+  geom_text_repel(data = as.data.frame(pca_result$rotation), 
+                  aes(x = PC1 * scale, y = PC2 * scale, label = rownames(pca_result$rotation)), 
+                  size = 4, color = "black", max.overlaps = 5, 
                   box.padding = 0.35, point.padding = 0.5) +
   scale_color_manual(values = colors) +
-  labs(title = "Biplot - PCA (Top 5 Loadings)", x = "PC1", y = "PC2", color = "Degradation Type") +
+  labs(title = "Biplot - PCA", x = "PC1", y = "PC2", color = "Degradation Type") +
   theme_minimal()
 
-print(biplot_top5)
+# Display the full biplot
+print(biplot_full)
 
-# Plot 3: Remaining Loadings After Top 5
-biplot_remaining <- ggplot(data = components, aes(x = PC1, y = PC2)) +
-  geom_point(aes(color = Degradation), size = 2, shape = 19, alpha = 0.7) +
-  geom_segment(data = remaining_loadings, 
-               aes(x = 0, y = 0, xend = PC1 * scale, yend = PC2 * scale), 
-               arrow = arrow(length = unit(0.3, "cm"), type = "open", angle = 25), 
-               size = 1.2, color = "darkblue") +
-  geom_text_repel(data = remaining_loadings, 
-                  aes(x = PC1 * scale, y = PC2 * scale, label = rownames(remaining_loadings)), 
-                  size = 4, color = "black", max.overlaps = 10, 
-                  box.padding = 0.35, point.padding = 0.5) +
-  scale_color_manual(values = colors) +
-  labs(title = "Biplot - PCA (Remaining Loadings)", x = "PC1", y = "PC2", color = "Degradation Type") +
-  theme_minimal()
 
-print(biplot_remaining)
 
-# Summary Plot for PC1
+
+
+
+# Summary Plot for PC1 (perhaps for smaller sample)
 
 # Extract explained variance
 explained_variance_ratio <- summary(pca_result)[["importance"]]['Proportion of Variance',]
@@ -964,7 +1293,8 @@ fig <- components %>%
       list(label=paste('PC 4 (', toString(round(explained_variance_ratio[4], 1)), '%)', sep = ''), values=~PC4)
     ),
     color = ~Degradation,  # Color based on degradation type
-    colors <- c("#92c5de", "#0073e6", "#e9a2b4", "#ca0020")
+    colors = c("#e9a2b4", "#ca0020","#92c5de", "#0073e6"),
+    marker = list(size = 4, opacity = 0.6)  # Smaller points, with transparency
   ) %>%
   style(diagonal = list(visible = FALSE)) %>%
   layout(
@@ -974,47 +1304,12 @@ fig <- components %>%
     plot_bgcolor = 'rgba(240,240,240, 0.95)',  # Light grey background
     xaxis = list(domain = NULL, showline = F, zeroline = F, gridcolor = '#ffff', ticklen = 4),
     yaxis = list(domain = NULL, showline = F, zeroline = F, gridcolor = '#ffff', ticklen = 4),
-    xaxis2 = axis,
-    xaxis)
+    xaxis2 = axis,  # Corrected comma and syntax
+    yaxis2 = axis   # Add yaxis2 for formatting
+  )
 
 # Display the figure
 fig
-
-
-#####TEST FOR GEDI SMALLER SAMPLE
-
-# Keep the Degradation variable separate before PCA
-degradation_type <- GEDI2ABPCA$Degradation
-
-# Merge
-GEDI2ABPCA <- GEDI2A_no_geom %>%
-  left_join(allGEDI2AB_ALS_amp_clean, by = "shot_number")
-
-str(GEDI2ABPCA)
-rm(allGEDI2A_no_geom, allGEDI2AB_ALS_amp_no_geom, common_columns)
-
-
-GEDI2ABPCA <- GEDI2ABPCA %>%
-  select(-Degradation, -solar_elevation, -l2b_quality_flag, -pgap_theta_error,
-         -shot_number, -elev_highestreturn, -elev_lowestmode, 
-         -sensitivity, -degrade_flag, -Age_category,
-         -Age_category2, -year, -ALS_CRS, -rh0, -matches("^rhz"),
-         -max_amp.x, -max, -validation, -omega, -rh5, -rh10, -rh15,
-         -rh20, -rh30, -rh35, -rh40, -rh45, -rh55, -rh60, -rh65, -rh70, 
-         -rh80, -rh85, -rh90, -rh95, -rh97, -rh98, -max_amp.y,
-         -z_kurt, -z_skew, -rh0, -rh5,-rh10, -rh15, -rh20, -rh30, -rh35,  
-         -rh40, -rh45, -rh55, -rh60, -rh65, -rh70, -rh80, -rh85, 
-         -rh90,  -rh97, -rh98, -rh99, -rh_min, -rh_max)
-
-
-# Additional cleanup if needed
-GEDI2ABPCA <- GEDI2ABPCA %>%
-  select(-modis_treecover, -cancov, -forest_age,
-         -burn_freq) 
-
-
-
-
 
 
 
@@ -1063,6 +1358,9 @@ print(loadings_Burned4_6)
 print(loadings_Burned1_3)
 print(loadings_Logged)
 print(loadings_Intact)
+
+
+
 
 
 
