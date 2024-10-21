@@ -708,7 +708,7 @@ sf::st_write(GEDI2AB4A, "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_
 rm(allGEDI, allGEDI2AB, allGEDI2AB_reg_aged, allGEDI2AB_reg_intact, allGEDI2AB_reg_intact_sample, 
    allGEDI2AB_reg_sec, allGEDI2AB4A_reg_aged, allGEDI2AB_ALS_aged)
                   
-# ------ Statistics NEARLY DONE ---------
+# ------ Statistics DONE ---------
 
 # Set rh and rhz columns for calculation (for example, rh97 and rhz97)
 rh_col <- "rh25"
@@ -718,7 +718,10 @@ rhz_col <- "rhz25"
 ccc_mod <- calculate_ccc(allGEDI2AB_ALS, rh_col, rhz_col)
 print(ccc_mod)
 
-# Subsets of forest gradient of degradation/ recovery
+ccc_mod_c <- calculate_ccc_c(allGEDI2AB_ALS, "cover", "cancov")
+print(ccc_mod_c)
+
+# Subsets of forest gradient of degradation/ recovery (rh and then cover)
 ccc_modint <- calculate_ccc(allGEDI2AB_ALS, rh_col, rhz_col, "Degradation == 'Intact'")
 print(ccc_modint)
 
@@ -734,6 +737,21 @@ print(ccc_modburnfreq1_3)
 ccc_modburnfreq4_6 <- calculate_ccc(allGEDI2AB_ALS, rh_col, rhz_col, "burn_freq %in% 4:6")
 print(ccc_modburnfreq4_6)
 
+
+ccc_modint_c <- calculate_ccc_c(allGEDI2AB_ALS, "cover", "cancov", "Degradation == 'Intact'")
+print(ccc_modint_c)
+
+ccc_modlog_c <- calculate_ccc_c(allGEDI2AB_ALS, "cover", "cancov", "Degradation == 'Logged'")
+print(ccc_modlog_c)
+
+ccc_modburn_c <- calculate_ccc_c(allGEDI2AB_ALS, "cover", "cancov", "burn_freq %in% 1:10")
+print(ccc_modburn_c)
+
+ccc_modburnfreq1_3_c <- calculate_ccc_c(allGEDI2AB_ALS, "cover", "cancov", "burn_freq %in% 1:3")
+print(ccc_modburnfreq1_3_c)
+
+ccc_modburnfreq4_6_c <- calculate_ccc_c(allGEDI2AB_ALS, "cover", "cancov", "burn_freq %in% 4:6")
+print(ccc_modburnfreq4_6_c)
 
 
 
@@ -798,6 +816,34 @@ stats_results$p_value <- ifelse(stats_results$p_value < 0.0001, "< 0.0001", spri
 
 # Print the results
 print(stats_results)
+
+
+# Simple Pearsons and p value for canopy cover (additional to rh values)
+pear_c <- calculate_pearsons_r_c(allGEDI2AB_ALS, "cover", "cancov")
+print(pear_c)
+
+pear_modint_c <- calculate_pearsons_r(allGEDI2AB_ALS, "cover", "cancov", "Degradation == 'Intact'")
+print(pear_modint_c)
+
+pear_modlog_c <- calculate_pearsons_r(allGEDI2AB_ALS, "cover", "cancov", "Degradation == 'Logged'")
+print(pear_modlog_c)
+
+pear_modburn_c <- calculate_pearsons_r(allGEDI2AB_ALS, "cover", "cancov", "burn_freq %in% 1:10")
+print(pear_modburn_c)
+
+pear_modburnfreq1_3_c <- calculate_pearsons_r(allGEDI2AB_ALS, "cover", "cancov", "burn_freq %in% 1:3")
+print(pear_modburnfreq1_3_c)
+
+pear_modburnfreq4_6_c <- calculate_pearsons_r(allGEDI2AB_ALS, "cover", "cancov", "burn_freq %in% 4:6")
+print(pear_modburnfreq4_6_c)
+
+
+
+
+
+
+
+
 
 
 
@@ -907,23 +953,23 @@ allGEDI2ABPCA <- allGEDI2AB_ALS_amp %>%
 
 
 allGEDI2ABPCA <- allGEDI2ABPCA %>%
-  select(-rh99, -rh100, -rh_max, -rh25, -n_peaks, -rh_mean, -rh50, -W_variance)
-         #-W_intercept, -W_slope) #-W_variance) #-Rh_slope, -Rh_variance, -Rh_intercept)
+  select(-rh99, -rh100, -rh_max, -rh25, -n_peaks, -rh_mean, -rh50, - rh_min, -rh_kurt, -rh_skew,
+           -rh_sd, -W_variance, -W_intercept, -pai, -W_slope, -Rh_intercept, -Rh_variance, Rh_slope)
 
 # Remove geometry
 allGEDI2ABPCA <- allGEDI2ABPCA %>%
   st_drop_geometry()
 
 # Convert character and integer columns to numeric
-allGEDI2ABPCA <- allGEDI2ABPCA %>%
-  mutate(
-    W_intercept = as.numeric(W_intercept),
-    W_slope = as.numeric(W_slope),
+#allGEDI2ABPCA <- allGEDI2ABPCA %>%
+#  mutate(
+   # W_intercept = as.numeric(W_intercept),
+    #W_slope = as.numeric(W_slope),
     #W_variance = as.numeric(W_variance),
-    Rh_intercept = as.numeric(Rh_intercept),
-    Rh_slope = as.numeric(Rh_slope),
-    Rh_variance = as.numeric(Rh_variance)
-  )
+    #Rh_intercept = as.numeric(Rh_intercept),
+    #Rh_slope = as.numeric(Rh_slope)
+  # Rh_variance = as.numeric(Rh_variance)
+ # )
 
 # Standardize the data for PCA
 scaled_data <- scale(allGEDI2ABPCA)
@@ -983,7 +1029,7 @@ colors <- c("#e9a2b4", "#ca0020", "#92c5de", "#0073e6")
 components$PC2 <- -components$PC2
 
 # Plot 1: Full Biplot with All Loadings
-scale <- 20  # Adjust arrow length scale
+scale <- 5 # Adjust arrow length scale
 biplot_full <- ggplot(data = components, aes(x = PC1, y = PC2)) +
   geom_point(aes(color = Degradation), size = 1, shape = 19, alpha = 0.8) +
   geom_segment(data = as.data.frame(pca_result$rotation), 
@@ -1016,15 +1062,6 @@ pc1_intact <- hist(pca_result$x[,1][which(degradation_type == "Intact")],
   breaks = 20                                            
 )
 
-pc2_intact <- hist(pca_result$x[,2][which(degradation_type=="Intact")])
-
-pc1_logged <- hist(pca_result$x[,1][which(degradation_type=="Logged")])
-pc2_logged <- hist(pca_result$x[,2][which(degradation_type=="Logged")])
-
-pc1_burn1_3 <- hist(pca_result$x[,1][which(degradation_type=="Burned 1-3")])
-pc2_burn1_3 <- hist(pca_result$x[,2][which(degradation_type=="Burned 1-3")])
-
-pc1_burn4_6 <- hist(pca_result$x[,1][which(degradation_type=="Burned 4+")])
 
 # Define common x and y axis limits
 x_limits <- c(-10, 5)
@@ -1376,6 +1413,7 @@ print(loadings_Intact)
 
 
 # PANEL ONE DONE - JUST NEED TO REMOVE CAPTIONS
+
 ## FIGURE 1 - GEDI validation / correspondance
 
 # Plot 1 : 4 panels - Correspondance between GEDI and ALS heights
@@ -1485,6 +1523,9 @@ figure1
 
 
 
+## FIGURE 2 - Degradation specific and pair wise correlations
+
+
 # Plot 3 - Correspondance for degraadtion types
 # Calculate correlation and create annotation text for degradation types at rh97
 correlations_degradation <- allGEDI2AB_ALS %>%
@@ -1566,7 +1607,7 @@ print(figure2)
 
 
 
-## FIGURE 3 
+## FIGURE 3 - GEDI degradation data across Amazonia 
 
 # Ordering of age within plots
 age_order <- c("<7", "7-15", "15-25", "25-40", ">40")
@@ -1616,7 +1657,6 @@ plot(panel_plot6)
 
 
 
-
 # GEDI CANOPY COVER AND AGE
 # Define breaks for age categories
 
@@ -1645,7 +1685,6 @@ panel_plot8 <- GEDI2AB %>%
 
 # Display the plot
 plot(panel_plot8)
-
 
 
 # GEDI AGBD
@@ -1679,26 +1718,20 @@ panel_plot10 <- GEDI2AB4A %>%
 # Print the plot
 print(panel_plot10)
 
-
-
 # Combine the plots using the patchwork package
-combined_plot2 <- (panel_plot5 + panel_plot6) /
+figure3 <- (panel_plot5 + panel_plot6) /
                    (panel_plot7 + panel_plot8) /
                    (panel_plot9 + panel_plot10)
 
 # Print the combined plot
-print(combined_plot2)
+print(figure3)
 
 
 
 
 
 
-
-
-
-
-## FIGURE 4
+## FIGURE 4 - Average relative height and waveform 
 
 # Transpose the data and select only relevant rows for rh shape
 
@@ -1762,9 +1795,30 @@ figure3
 
 
 
-##FIGURE 5
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+##FIGURE 5 - Violin plots for loadings
 
 
 wave_slope <- allGEDI2AB_ALS_amp %>%
