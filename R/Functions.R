@@ -148,17 +148,14 @@ gedi2A_batch_download <- function(poly_folder_path, start_date, end_date, fgb_ou
       next  # Skip to the next iteration if no GEDI files are found
     }
     
-    gedi2a_sf <- grab_gedi(gedi2a_search, add_vars = list(energy_total = "/energy_total",
-                                                          num_detmodes = "/num_detectedmodes",
-                                                          rx_energy = "/rx_energy")) |>
+    gedi2a_sf <- grab_gedi(gedi2a_search) |>
       filter(
         quality_flag == 1,
         degrade_flag == 0
       ) |>
       mutate(year = lubridate::year(date_time)) |>
       select(
-        #beam, 
-        year, solar_elevation, lat_lowestmode, lon_lowestmode,
+        beam, year, solar_elevation, lat_lowestmode, lon_lowestmode,
         elev_highestreturn, elev_lowestmode, rh0, rh1, rh2, rh3, rh4, rh5, rh6, rh7, rh8, rh9, 
         rh10, rh11, rh12, rh13, rh14, rh15, rh16, rh17, rh18, rh19, rh20, rh21, rh22, rh23, rh24, 
         rh25, rh26, rh27, rh28, rh29, rh30, rh31, rh32, rh33, rh34, rh35, rh36, rh37, rh38, rh39, 
@@ -166,11 +163,34 @@ gedi2A_batch_download <- function(poly_folder_path, start_date, end_date, fgb_ou
         rh55, rh56, rh57, rh58, rh59, rh60, rh61, rh62, rh63, rh64, rh65, rh66, rh67, rh68, rh69, 
         rh70, rh71, rh72, rh73, rh74, rh75, rh76, rh77, rh78, rh79, rh80, rh81, rh82, rh83, rh84, 
         rh85, rh86, rh87, rh88, rh89, rh90, rh91, rh92, rh93, rh94, rh95, rh96, rh97, rh98, rh99, 
-        rh100, sensitivity, shot_number, degrade_flag, energy_total, num_detmodes, rx_energy
+        rh100, sensitivity, shot_number, degrade_flag, num_detectedmodes, modis_treecover,
+        rx_cumulative_a1_0, rx_cumulative_a1_1, rx_cumulative_a1_2, rx_cumulative_a1_3, rx_cumulative_a1_4,
+        rx_cumulative_a1_5, rx_cumulative_a1_6, rx_cumulative_a1_7, rx_cumulative_a1_8, rx_cumulative_a1_9,
+        rx_cumulative_a1_10, rx_cumulative_a1_11, rx_cumulative_a1_12, rx_cumulative_a1_13, rx_cumulative_a1_14,
+        rx_cumulative_a1_15, rx_cumulative_a1_16, rx_cumulative_a1_17, rx_cumulative_a1_18, rx_cumulative_a1_19,
+        rx_cumulative_a1_20, rx_cumulative_a1_21, rx_cumulative_a1_22, rx_cumulative_a1_23, rx_cumulative_a1_24,
+        rx_cumulative_a1_25, rx_cumulative_a1_26, rx_cumulative_a1_27, rx_cumulative_a1_28, rx_cumulative_a1_29,
+        rx_cumulative_a1_30, rx_cumulative_a1_31, rx_cumulative_a1_32, rx_cumulative_a1_33, rx_cumulative_a1_34,
+        rx_cumulative_a1_35, rx_cumulative_a1_36, rx_cumulative_a1_37, rx_cumulative_a1_38, rx_cumulative_a1_39,
+        rx_cumulative_a1_40, rx_cumulative_a1_41, rx_cumulative_a1_42, rx_cumulative_a1_43, rx_cumulative_a1_44,
+        rx_cumulative_a1_45, rx_cumulative_a1_46, rx_cumulative_a1_47, rx_cumulative_a1_48, rx_cumulative_a1_49,
+        rx_cumulative_a1_50, rx_cumulative_a1_51, rx_cumulative_a1_52, rx_cumulative_a1_53, rx_cumulative_a1_54,
+        rx_cumulative_a1_55, rx_cumulative_a1_56, rx_cumulative_a1_57, rx_cumulative_a1_58, rx_cumulative_a1_59,
+        rx_cumulative_a1_60, rx_cumulative_a1_61, rx_cumulative_a1_62, rx_cumulative_a1_63, rx_cumulative_a1_64,
+        rx_cumulative_a1_65, rx_cumulative_a1_66, rx_cumulative_a1_67, rx_cumulative_a1_68, rx_cumulative_a1_69,
+        rx_cumulative_a1_70, rx_cumulative_a1_71, rx_cumulative_a1_72, rx_cumulative_a1_73, rx_cumulative_a1_74,
+        rx_cumulative_a1_75, rx_cumulative_a1_76, rx_cumulative_a1_77, rx_cumulative_a1_78, rx_cumulative_a1_79,
+        rx_cumulative_a1_80, rx_cumulative_a1_81, rx_cumulative_a1_82, rx_cumulative_a1_83, rx_cumulative_a1_84,
+        rx_cumulative_a1_85, rx_cumulative_a1_86, rx_cumulative_a1_87, rx_cumulative_a1_88, rx_cumulative_a1_89,
+        rx_cumulative_a1_90, rx_cumulative_a1_91, rx_cumulative_a1_92, rx_cumulative_a1_93, rx_cumulative_a1_94,
+        rx_cumulative_a1_95, rx_cumulative_a1_96, rx_cumulative_a1_97, rx_cumulative_a1_98, rx_cumulative_a1_99,
+        rx_cumulative_a1_100
       ) |>
       mutate(shot_number=as.character(shot_number)) |>
-             #beam=as.character(beam)) 
-    
+             mutate(beam=as.character(beam)) |>
+              rename_with(~ gsub("rx_cumulative_a1_", "rx_cum", .), starts_with("rx_cumulative_a1_")) |>
+
+      
       collect_gedi(gedi_find = gedi2a_search)
     
     # Add a new column with polygon ALS CRS for future reference
@@ -298,68 +318,31 @@ gedi4A_batch_download <- function(poly_folder_path, start_date, end_date, fgb_ou
   }
 }
 
-
-#NEEDS WORK
-gedi1B_batch_download <- function(poly_folder_path, start_date, end_date, fgb_output_folder) {
-  
-  # List all shapefiles in folder
-  shapefiles <- list.files(poly_folder_path, pattern = "\\.shp$", full.names = TRUE)
-  
-  # Process each shapefile
-  for (polygon_file in shapefiles) {
-    # Read the polygon from the shapefile
-    polygon <- st_read(polygon_file)
-    
-    # Display the polygon information for batch progress
-    cat("Processing polygon:", polygon_file, "\n")
-    
-    # Search for 1B products within AOI
-    gedi1b_search <- find_gedi(polygon,
-                               gedi_product = "1B",
-                               date_start = start_date,
-                               date_end = end_date)
-    
-    # Download the search output; will not download if already cached
-    gedi_1b_arr <- grab_gedi(gedi1b_search,
-                             add_vars = list(
-                               rx_energy = "rx_energy",
-                               solar_elevation = "geolocation/solar_elevation") %>%
-                               filter(degrade == 0))
-    
-    # Collect the data into a data frame
-    gedi1b_sf <- collect_gedi(gedi_1b_arr, gedi1b_search)
-    
-    # select date_time, shot_number- point geometry fgb
-    
-    # Extracting all of the waveforms
-    gedi1b_wvf <- extract_waveforms(gedi1b_sf)
-    
-    
-    # save as .csv and make a new file of just shot number, point etc
-    
-    
-    # Generate a unique output file name based on the shapefile name
-    output_file <- file.path(fgb_output_folder, paste0(tools::file_path_sans_ext(basename(polygon_file)), "_1B.csv"))
-    
-    # Save the GEDI GeoDataFrame to the output file
-    # sf::st_write(gedi1b_sf, output_file, delete_dsn = TRUE)
-    
-    # Save the GEDI data frame to the output file without spatial context (can join a metric to 2A table later)
-    write.table(as.data.frame(gedi_1b_arr), output_file, sep = ",", row.names = FALSE)
-    
-  }
-}
-
-wvf_ggplot <- function(x, wf, z, .ylab = "Elevation (m)") {
-  wf <- sym(wf)
-  z <- sym(z)
-  ggplot(x, aes(x = !!z, y = !!wf)) +
-    geom_ribbon(aes(ymin = min(!!wf), ymax = !!wf),
-                alpha = 0.6, fill = "#69d66975", colour = "grey30", lwd = 0.2
-    ) +
-    theme_light() +
-    coord_flip() +
-    labs(x = .ylab, y = "Waveform Amplitude")
+# Calculate amplitude proxy from cumulative energy values in GEDI2A data
+gedi_long <- function(gdf) {
+  gdf |>
+    sf::st_drop_geometry() |>
+    dplyr::select(shot_number, starts_with("rh"), starts_with("rx")) |>
+    tidyr::pivot_longer(
+      cols = -shot_number,
+      names_to = c("type", "interval"),
+      names_pattern = "(rh|rx_cum)(\\d+)",
+      values_to = "value"
+    ) |>
+    dplyr::mutate(
+      interval = as.numeric(interval)
+    ) |>
+    tidyr::pivot_wider(
+      names_from = type,
+      values_from = value
+    ) |>
+    dplyr::arrange(shot_number, interval) |>
+    dplyr::group_by(shot_number) |>
+    dplyr::mutate(
+      rx = rx_cum - dplyr::lead(rx_cum),
+      amp = sqrt(max(rx, na.rm = TRUE) - rx + min(rx, na.rm = TRUE))
+    ) |>
+    dplyr::ungroup()
 }
 
 
@@ -394,6 +377,35 @@ process_GEDI_degradation <- function(data) {
     mutate(Age_category2 = cut(forest_age, breaks = c(-Inf, 10, 20, 30, 40, Inf), 
                                labels = c("<10", "10-20", "20-30", "30-40", ">40")))
 }
+
+
+# Cleaning cumulative eenergy data for waveform regression statistics
+gedi_cum_long <- function(gdf) {
+  gdf |>
+    sf::st_drop_geometry() |>
+    dplyr::select(shot_number, starts_with("rh"), starts_with("rx")) |>
+    tidyr::pivot_longer(
+      cols = -shot_number,
+      names_to = c("type", "interval"),
+      names_pattern = "(rh|rx_cum)(\\d+)",
+      values_to = "value"
+    ) |>
+    dplyr::mutate(
+      interval = as.numeric(interval)
+    ) |>
+    tidyr::pivot_wider(
+      names_from = type,
+      values_from = value
+    ) |>
+    dplyr::arrange(shot_number, interval) |>
+    dplyr::group_by(shot_number) |>
+    dplyr::mutate(
+      rx = rx_cum - dplyr::lead(rx_cum),
+      amp = sqrt(max(rx, na.rm = TRUE) - rx + min(rx, na.rm = TRUE))
+    ) |>
+    dplyr::ungroup()
+}
+
 
 
 
@@ -473,6 +485,8 @@ calculate_skew_kurt <- function(row) {
 }
 
 
+
+
 # waveformlidar package - maxamp function
 safe_maxamp <- function(row) {
   result <- tryCatch({
@@ -489,7 +503,81 @@ safe_maxamp <- function(row) {
 
 
 
+# Helper function for fslope
+safe_fslope <- function(row) {
+  result <- tryCatch({
+    fslope(as.numeric(row[-1]), smooth = TRUE, thres = 0.22, width = 5, tr = 1)
+  }, error = function(e) return(list(FS = NA, ROUGH = NA)))
+  
+  if (is.null(result)) {
+    return(list(FS = NA, ROUGH = NA))
+  } else {
+    return(result)
+  }
+}
 
+# Helper function for integral
+safe_integral <- function(row) {
+  result <- tryCatch({
+    integral(as.numeric(row[-1]), smooth = TRUE, rescale = TRUE, thres = 0.2, width = 3, tr = 1, dis = 20)
+  }, error = function(e) return(list(ground_integral = NA, veg_integral = NA, total_integral = NA, veg_to_total = NA)))
+  
+  if (is.null(result)) {
+    return(list(ground_integral = NA, veg_integral = NA, total_integral = NA, veg_to_total = NA))
+  } else {
+    return(result)
+  }
+}
+
+# Helper function for lpeak
+safe_lpeak <- function(row) {
+  result <- tryCatch({
+    peaks <- lpeak(as.numeric(row[-1]), span = 3)
+    return(list(peaks = peaks))
+  }, error = function(e) return(list(peaks = NA)))
+  
+  if (is.null(result)) {
+    return(list(peaks = NA))
+  } else {
+    return(result)
+  }
+}
+lpeak_results <- lapply(lpeak_results, function(x) {
+  if (!is.null(x$peaks)) {
+    # Summarize by counting the number of TRUE values
+    return(data.frame(n_peaks = sum(x$peaks, na.rm = TRUE)))
+  } else {
+    return(data.frame(n_peaks = NA))
+  }
+})
+
+# Helper function for maxamp
+safe_maxamp <- function(row) {
+  result <- tryCatch({
+    max_amp <- maxamp(as.numeric(row[-1]), smooth = TRUE, thres = 0.2, width = 3)
+    return(list(max_amp = max_amp))
+  }, error = function(e) return(list(max_amp = NA)))
+  
+  if (is.null(result)) {
+    return(list(max_amp = NA))
+  } else {
+    return(result)
+  }
+}
+
+# Helper function for npeaks
+safe_npeaks <- function(row) {
+  result <- tryCatch({
+    n_peaks <- npeaks(as.numeric(row[-1]), drop = c(0, 0), smooth = TRUE, threshold = 0.2)
+    return(list(n_peaks = n_peaks))
+  }, error = function(e) return(list(n_peaks = NA)))
+  
+  if (is.null(result)) {
+    return(list(n_peaks = NA))
+  } else {
+    return(result)
+  }
+}
 
 
 
@@ -671,6 +759,26 @@ calculate_ccc <- function(data, rh_col, rhz_col, condition = NULL) {
   return(paste(round(ccc_result$rho.c[1], 2)))
 }
 
+# Simplified function to compute Lin's CCC for canopy cover
+# Function to calculate CCC with optional filtering condition
+calculate_ccc_c <- function(data, rh_col, rhz_col, condition = NULL) {
+  # If a condition is provided, filter the data
+  if (!is.null(condition)) {
+    data <- data %>% filter(!!rlang::parse_expr(condition))
+  }
+  
+  # Extract the specified columns
+  x <- data[[rh_col]]
+  y <- data[[rhz_col]]
+  
+  # Calculate Lin's CCC
+  ccc_result <- CCC(x, y, ci = "z-transform", conf.level = 0.95)
+  
+  # Return the CCC value
+  return(paste(round(ccc_result$rho.c[1], 2)))
+}
+
+
 # Function to calculate Pearson's r and test significance
 calculate_pearsons_r <- function(data, rh_col, rhz_col, condition = NULL) {
   if (!is.null(condition)) {
@@ -722,6 +830,28 @@ calculate_stats <- function(data, rh_col, rhz_col, condition = NULL) {
 # Function to handle 'burned' condition
 handle_burned_condition <- function(data) {
   data %>% filter(grepl("Burned", Degradation, ignore.case = TRUE))
+}
+
+
+
+
+
+# Simple Function to calculate Pearson's r and p-value for canopy cover
+calculate_pearsons_r_c <- function(data, rh_col, rhz_col, condition = NULL) {
+  # If a condition is provided, filter the data
+  if (!is.null(condition)) {
+    data <- data %>% filter(!!rlang::parse_expr(condition))
+  }
+  
+  # Perform Pearson's correlation test
+  cor_test_result <- cor.test(data[[rh_col]], data[[rhz_col]], method = "pearson")
+  
+  # Extract Pearson's r and p-value
+  r_value <- cor_test_result$estimate
+  p_value <- cor_test_result$p.value
+  
+  # Return Pearson's r and p-value in a list
+  list(r_value = r_value, p_value = p_value)
 }
 
 

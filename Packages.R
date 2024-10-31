@@ -2,6 +2,11 @@
 #install.packages("purrr")
 #pak::pkg_install("Permian-Global-Research/chewie")
 
+library(waveformlidar)
+library(data.table)
+
+
+
 # Data reading
 #library(xlread)
 library(vroom)
@@ -20,6 +25,7 @@ library(purrr)
 library(lidR)
 library(chewie)
 library(ca)
+library(waveformlidar)
 
 # Spatial data
 library(sf)
@@ -34,7 +40,9 @@ library(gtsummary)
 library(mapview)
 library(ggplot2)
 library(plotly)
-install.packages('leafgl')
+library(leafgl)
+library(patchwork)
+library(grid)
 
 # Communications
 library(cli)
@@ -46,3 +54,12 @@ library(targets)
 
 # NOT SURE WHERE THIS ONE GOES
 library(lmomco)
+
+
+
+# Install and load the ggrepel package if not already done
+if (!requireNamespace("ggrepel", quietly = TRUE)) {
+  install.packages("ggrepel")
+}
+library(ggrepel)
+

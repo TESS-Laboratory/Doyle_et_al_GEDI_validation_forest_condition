@@ -912,8 +912,6 @@ print(pearsons_results)
 # -------- Principle Component Analysis INTEGRATION OF AMP---------
 
 
-# UNTIL HAVE RUN THROUGH ALL DATA TO COMBINE NEW AMP GEDI AND DEGRADATION
-
 # For the PCA until have updated (removed max.amp.x)
 
 allGEDI2A_amp_PCA <- allGEDI2A_amp %>%
@@ -983,7 +981,7 @@ summary(pca_result)
 
 
 # Sort loadings to see potentially too similar loadings
-loadings_pca <- pca_result$rotation[, c(1, 2)]  # PC1 is the first column, PC2 is the second
+loadings_pca <- pca_result$rotation[, c(1, 2, 3)]  # PC1 is the first column, PC2 is the second
 loadings_df <- as.data.frame(loadings_pca)
 loadings_df$Variable <- rownames(loadings_pca)
 
@@ -997,9 +995,14 @@ sorted_PC2 <- loadings_df %>%
   select(Variable, PC2) %>%
   arrange(desc(PC2))
 
+# Sort loadings by PC3 in descending order
+sorted_PC3 <- loadings_df %>%
+  select(Variable, PC3) %>%
+  arrange(desc(PC3))
+
 print(sorted_PC1)
 print(sorted_PC2)
-
+print(sorted_PC3)
 
 
 # See explaination of variance of top contributing variables
@@ -1064,7 +1067,7 @@ pc1_intact <- hist(pca_result$x[,1][which(degradation_type == "Intact")],
 
 
 # Define common x and y axis limits
-x_limits <- c(-10, 5)
+x_limits <- c(-6, 5)
 
 # Extract the principal components data into a dataframe
 pca_data <- as.data.frame(pca_result$x)
@@ -1162,10 +1165,11 @@ pc3_burn4_6 <- ggplot(pca_data[degradation_type == "Burned 4+", ], aes(x = PC3))
 fig_7 <- (pc3_burn4_6 | pc3_burn1_3 | pc3_logged | pc3_intact)
 
 
-fig_8 <- (fig_4) / (fig_5) / (fig_7)
+fig_8 <- (fig_4) / (fig_5)
 print(fig_8)
 
-
+fig_9 <- (biplot_full) / (fig_8)
+print(fig_9)
 
 
 
@@ -1417,11 +1421,25 @@ print(loadings_Intact)
 ## FIGURE 1 - GEDI validation / correspondance
 
 # Plot 1 : 4 panels - Correspondance between GEDI and ALS heights
+
+allGEDI2AB_ALS_height_long <- allGEDI2AB_ALS %>%
+  pivot_longer(cols = starts_with("rhz"), names_to = "ALS", values_to = "ALS_value") %>%
+  pivot_longer(cols = starts_with("rh"), names_to = "GEDI", values_to = "GEDI_value") %>%
+  filter((ALS == "rhz25" & GEDI == "rh25") | 
+           (ALS == "rhz50" & GEDI == "rh50") |
+           (ALS == "rhz75" & GEDI == "rh75") |
+           (ALS == "rhz96" & GEDI == "rh96"))
+
+correlations_height <- allGEDI2AB_ALS_height_long %>%
+  group_by(ALS, GEDI) %>%
+  summarise(correlation = cor(ALS_value, GEDI_value, use = "complete.obs")) %>%
+  mutate(annotation = paste0("R² = ", round(correlation^2, 2)))
+
 # Filter the reshaped height data to keep only the pairs of ALS and GEDI columns
 height_rhz25 <- allGEDI2AB_ALS_height_long %>% filter(ALS == "rhz25")
 height_rhz50 <- allGEDI2AB_ALS_height_long %>% filter(ALS == "rhz50")
 height_rhz75 <- allGEDI2AB_ALS_height_long %>% filter(ALS == "rhz75")
-height_rhz97 <- allGEDI2AB_ALS_height_long %>% filter(ALS == "rhz97")
+height_rhz96 <- allGEDI2AB_ALS_height_long %>% filter(ALS == "rhz96")
 
 # Define the limits for both x and y axes for the rhz plots
 common_limits <- c(0, 60)
@@ -1464,7 +1482,7 @@ plot_rhz75 <- ggplot(height_rhz75, aes(x = ALS_value, y = GEDI_value, color = De
   theme(plot.title = element_text(hjust = 0.5)) +
   guides(color = "none")  # Suppress the legend
 
-plot_rhz97 <- ggplot(height_rhz97, aes(x = ALS_value, y = GEDI_value, color = Degradation)) +
+plot_rhz96 <- ggplot(height_rhz96, aes(x = ALS_value, y = GEDI_value, color = Degradation)) +
   geom_point(size = 0.5) +
   geom_text(data = correlations_height %>% filter(ALS == "rhz97"), 
             aes(x = Inf, y = Inf, label = annotation), 
