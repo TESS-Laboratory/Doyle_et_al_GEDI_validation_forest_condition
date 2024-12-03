@@ -184,7 +184,7 @@ gedi2A_batch_download <- function(poly_folder_path, start_date, end_date, fgb_ou
         rx_cumulative_a1_85, rx_cumulative_a1_86, rx_cumulative_a1_87, rx_cumulative_a1_88, rx_cumulative_a1_89,
         rx_cumulative_a1_90, rx_cumulative_a1_91, rx_cumulative_a1_92, rx_cumulative_a1_93, rx_cumulative_a1_94,
         rx_cumulative_a1_95, rx_cumulative_a1_96, rx_cumulative_a1_97, rx_cumulative_a1_98, rx_cumulative_a1_99,
-        rx_cumulative_a1_100
+        rx_cumulative_a1_100, landsat_treecover
       ) |>
       mutate(shot_number=as.character(shot_number)) |>
              mutate(beam=as.character(beam)) |>
@@ -363,15 +363,14 @@ filter_reproj_GEDI <- function(data, als_crs_value, epsg_code) {
 process_GEDI_degradation <- function(data) {
   data %>%
     mutate(Degradation = case_when(
-      burn_freq == 1 ~ "Burned 1-3",
-      burn_freq == 2 ~ "Burned 1-3",
-      burn_freq == 3 ~ "Burned 1-3",
+      burn_freq == 1 ~ "Burned 1",
+      burn_freq == 2 ~ "Burned 2",
+      burn_freq == 3 ~ "Burned 3",
       burn_freq > 3 ~ "Burned 4+",
       forest_age < 50 ~ "Logged",
       forest_age >= 50 ~ "Intact",
       TRUE ~ NA_character_
     )) %>%
-    mutate
     mutate(Age_category = cut(forest_age, breaks = c(-Inf, 6, 15, 25, 40, Inf), 
                               labels = c("<7", "7-15", "15-25", "25-40", ">40"))) %>%
     mutate(Age_category2 = cut(forest_age, breaks = c(-Inf, 10, 20, 30, 40, Inf), 
@@ -585,16 +584,6 @@ safe_npeaks <- function(row) {
 
 
 
-
-
-
-
-
-
-
-
-
-
 # EXTRACTING METRCIS FROM ALS FUNCTIONS USING LidR
 
 #' Standard LiDAR metrics
@@ -776,6 +765,17 @@ calculate_ccc_c <- function(data, rh_col, rhz_col, condition = NULL) {
   
   # Return the CCC value
   return(paste(round(ccc_result$rho.c[1], 2)))
+}
+
+
+
+# Function to add a CCC result to the list
+add_ccc_result <- function(condition, ccc_value, type) {
+  ccc_results_list <<- append(ccc_results_list, list(data.frame(
+    Condition = condition,
+    Type = type,
+    Lins_CCC = as.numeric(ccc_value)
+  )))
 }
 
 
