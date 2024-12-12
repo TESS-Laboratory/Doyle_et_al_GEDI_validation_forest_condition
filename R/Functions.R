@@ -485,100 +485,100 @@ calculate_skew_kurt <- function(row) {
 
 
 
-
-# waveformlidar package - maxamp function
-safe_maxamp <- function(row) {
-  result <- tryCatch({
-    max_amp <- maxamp(as.numeric(row[-1]), smooth = TRUE, thres = 0.2, width = 3)
-    return(list(max_amp = max_amp))
-  }, error = function(e) return(list(max_amp = NA)))
-  
-  if (is.null(result)) {
-    return(list(max_amp = NA))
-  } else {
-    return(result)
-  }
-}
-
-
-
-# Helper function for fslope
-safe_fslope <- function(row) {
-  result <- tryCatch({
-    fslope(as.numeric(row[-1]), smooth = TRUE, thres = 0.22, width = 5, tr = 1)
-  }, error = function(e) return(list(FS = NA, ROUGH = NA)))
-  
-  if (is.null(result)) {
-    return(list(FS = NA, ROUGH = NA))
-  } else {
-    return(result)
-  }
-}
-
-# Helper function for integral
-safe_integral <- function(row) {
-  result <- tryCatch({
-    integral(as.numeric(row[-1]), smooth = TRUE, rescale = TRUE, thres = 0.2, width = 3, tr = 1, dis = 20)
-  }, error = function(e) return(list(ground_integral = NA, veg_integral = NA, total_integral = NA, veg_to_total = NA)))
-  
-  if (is.null(result)) {
-    return(list(ground_integral = NA, veg_integral = NA, total_integral = NA, veg_to_total = NA))
-  } else {
-    return(result)
-  }
-}
-
-# Helper function for lpeak
-safe_lpeak <- function(row) {
-  result <- tryCatch({
-    peaks <- lpeak(as.numeric(row[-1]), span = 3)
-    return(list(peaks = peaks))
-  }, error = function(e) return(list(peaks = NA)))
-  
-  if (is.null(result)) {
-    return(list(peaks = NA))
-  } else {
-    return(result)
-  }
-}
-lpeak_results <- lapply(lpeak_results, function(x) {
-  if (!is.null(x$peaks)) {
-    # Summarize by counting the number of TRUE values
-    return(data.frame(n_peaks = sum(x$peaks, na.rm = TRUE)))
-  } else {
-    return(data.frame(n_peaks = NA))
-  }
-})
-
-# Helper function for maxamp
-safe_maxamp <- function(row) {
-  result <- tryCatch({
-    max_amp <- maxamp(as.numeric(row[-1]), smooth = TRUE, thres = 0.2, width = 3)
-    return(list(max_amp = max_amp))
-  }, error = function(e) return(list(max_amp = NA)))
-  
-  if (is.null(result)) {
-    return(list(max_amp = NA))
-  } else {
-    return(result)
-  }
-}
-
-# Helper function for npeaks
-safe_npeaks <- function(row) {
-  result <- tryCatch({
-    n_peaks <- npeaks(as.numeric(row[-1]), drop = c(0, 0), smooth = TRUE, threshold = 0.2)
-    return(list(n_peaks = n_peaks))
-  }, error = function(e) return(list(n_peaks = NA)))
-  
-  if (is.null(result)) {
-    return(list(n_peaks = NA))
-  } else {
-    return(result)
-  }
-}
-
-
+# 
+# # waveformlidar package - maxamp function
+# safe_maxamp <- function(row) {
+#   result <- tryCatch({
+#     max_amp <- maxamp(as.numeric(row[-1]), smooth = TRUE, thres = 0.2, width = 3)
+#     return(list(max_amp = max_amp))
+#   }, error = function(e) return(list(max_amp = NA)))
+#   
+#   if (is.null(result)) {
+#     return(list(max_amp = NA))
+#   } else {
+#     return(result)
+#   }
+# }
+# 
+# 
+# 
+# # Helper function for fslope
+# safe_fslope <- function(row) {
+#   result <- tryCatch({
+#     fslope(as.numeric(row[-1]), smooth = TRUE, thres = 0.22, width = 5, tr = 1)
+#   }, error = function(e) return(list(FS = NA, ROUGH = NA)))
+#   
+#   if (is.null(result)) {
+#     return(list(FS = NA, ROUGH = NA))
+#   } else {
+#     return(result)
+#   }
+# }
+# 
+# # Helper function for integral
+# safe_integral <- function(row) {
+#   result <- tryCatch({
+#     integral(as.numeric(row[-1]), smooth = TRUE, rescale = TRUE, thres = 0.2, width = 3, tr = 1, dis = 20)
+#   }, error = function(e) return(list(ground_integral = NA, veg_integral = NA, total_integral = NA, veg_to_total = NA)))
+#   
+#   if (is.null(result)) {
+#     return(list(ground_integral = NA, veg_integral = NA, total_integral = NA, veg_to_total = NA))
+#   } else {
+#     return(result)
+#   }
+# }
+# 
+# # Helper function for lpeak
+# safe_lpeak <- function(row) {
+#   result <- tryCatch({
+#     peaks <- lpeak(as.numeric(row[-1]), span = 3)
+#     return(list(peaks = peaks))
+#   }, error = function(e) return(list(peaks = NA)))
+#   
+#   if (is.null(result)) {
+#     return(list(peaks = NA))
+#   } else {
+#     return(result)
+#   }
+# }
+# lpeak_results <- lapply(lpeak_results, function(x) {
+#   if (!is.null(x$peaks)) {
+#     # Summarize by counting the number of TRUE values
+#     return(data.frame(n_peaks = sum(x$peaks, na.rm = TRUE)))
+#   } else {
+#     return(data.frame(n_peaks = NA))
+#   }
+# })
+# 
+# # Helper function for maxamp
+# safe_maxamp <- function(row) {
+#   result <- tryCatch({
+#     max_amp <- maxamp(as.numeric(row[-1]), smooth = TRUE, thres = 0.2, width = 3)
+#     return(list(max_amp = max_amp))
+#   }, error = function(e) return(list(max_amp = NA)))
+#   
+#   if (is.null(result)) {
+#     return(list(max_amp = NA))
+#   } else {
+#     return(result)
+#   }
+# }
+# 
+# # Helper function for npeaks
+# safe_npeaks <- function(row) {
+#   result <- tryCatch({
+#     n_peaks <- npeaks(as.numeric(row[-1]), drop = c(0, 0), smooth = TRUE, threshold = 0.2)
+#     return(list(n_peaks = n_peaks))
+#   }, error = function(e) return(list(n_peaks = NA)))
+#   
+#   if (is.null(result)) {
+#     return(list(n_peaks = NA))
+#   } else {
+#     return(result)
+#   }
+# }
+# 
+# 
 
 
 
@@ -869,14 +869,85 @@ calculate_pearson <- function(data, condition, rh_col, rhz_col) {
 
 
 
+# Multinomial linear regression model
+
+
+# fit multinomial logistic regression and plot it
+fit_nplot_mnlr <- function(control_var) {
+  control_var <- enquo(control_var)
+  # Create the formula using the symbol
+  formula <- as.formula(paste("Degradation ~", quo_name(control_var)))
+  mnlr <- nnet::multinom(formula, data = gpca)
+  
+  cli::cli_alert_info("{quo_name(control_var)} model AIC: {AIC(mnlr)}")
+  # Predict probabilities using marginaleffects package
+  preds <- as_tibble(marginaleffects::predictions(mnlr, type = "probs"))
+  
+  # Plot the results
+  preds |>
+    ggplot() +
+    aes(x = !!control_var, y = estimate, fill = group, group = group) +
+    geom_ribbon(aes(ymin = conf.low, ymax = conf.high),
+                color = NA,  # Remove the gray outline by setting to NA
+                alpha = 0.8   # Transparency for ribbons
+    ) +
+    scale_fill_manual(values = colors, name = "Condition") +  # Use custom color palette
+    theme_linedraw() +
+    theme_fancy() +
+    scale_y_sqrt() +
+    labs(
+      x = quo_name(control_var),
+      y = "Probability", 
+      fill = "Condition",  # Update legend title
+      caption = glue::glue("AIC: {round(AIC(mnlr),1)}")  # Add AIC caption
+    ) +
+    theme(
+      legend.position = "right"  # Position legend on the right
+    )
+}
+
+
+
 
 
 # VISUALISATIONS FUNCTIONS
 
-# Create ggplot point graphs
-#ggplot_point <- function(data, x_var, y_var, color_var, title, x_label, y_label) {
-#  ggplot(data, aes_string(x = x_var, y = y_var, color = color_var)) +
-#    geom_point() +
- #   labs(title = title, x = x_label, y = y_label) +
- #   theme_light()
-#}
+## Plotting theme
+theme_fancy <- function() {
+  theme_bw() +
+    theme(
+      text = element_text(family = "Arial"),
+      axis.text = element_text(size = 10, color = "black"),
+      axis.title = element_text(size = 10, color = "black"),
+      axis.line.x = element_line(size = 0.3, color = "black"),
+      axis.line.y = element_line(size = 0.3, color = "black"),
+      axis.ticks = element_line(size = 0.3, color = "black"),
+      panel.border = element_blank(),
+      panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(),
+      panel.grid.minor.y = element_blank(),
+      panel.grid.major.y = element_blank(),
+      plot.margin = unit(c(0.5, 0.5, 0.5, 0.5), units = "cm"),
+      plot.title = element_text(
+        size = 10,
+        vjust = 1,
+        hjust = 0.5,
+        color = "black"
+      ),
+      legend.text = element_text(size = 8, color = "black"),
+      legend.title = element_text(size = 8, color = "black"),
+      legend.position = c(0.9, 0.9),
+      legend.key.size = unit(0.9, "line"),
+      legend.background = element_rect(
+        color = "black",
+        fill = "transparent",
+        size = 2,
+        linetype = "blank"
+      ),
+      strip.background = element_blank(),  # Remove facet label background
+      strip.text = element_text(size = 8, color = "black", face = "bold")  # Style facet label text
+    )
+}
+
+#windowsFonts("Helvetica" = windowsFont("Helvetica")) # Ensure font is mapped correctly
+

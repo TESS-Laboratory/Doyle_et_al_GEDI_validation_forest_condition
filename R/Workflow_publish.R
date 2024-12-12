@@ -17,7 +17,7 @@ reload()
 mapviewOptions(platform = "leafgl")
 options(mapviewMaxPixels = 1000000000)
 
-# ----- Pre-Process ALS DONE -------- 
+# ----- Pre-Process ALS -------- 
 # ALS data is sourced from Sustainable Landscapes Brazil project (2018), downloaded into coordinate reference system (CRS)
 # regions with the format 'DAAC_year_CRS'. Data is also sourced from Permian Global in 2023 for Rio Cautario. 
 # ALS data is combined but catalogs are separated by their CRS.
@@ -74,7 +74,7 @@ rm(DAAC18_19S, CAUT23_20S, DAAC1821_21S, retile_DAAC18_19S, retile_CAUT23_20S,
 
 
 
-# ----------- GEDI download DONE ----------------
+# ----------- GEDI download ----------------
 
 # GEDI files are downloaded to correspond with ALS data extent e.g. DAAC ALS 2018 = 2019-01-01 to 2019-12-31
 # DAAC 2021 = 2020-06-01 to 2022-06-01 and CAUTARIO 2023 = 2022-01-01 to 2024-06-01 (year gap in 23-24 collection)
@@ -685,31 +685,31 @@ allGEDI2AB <- allGEDI2AB_aged %>%
   process_GEDI_degradation()
 
 
-# Extra validation step: removing unclassified burned forest below 0.3 cover (predominantly misclassified farmland)
-
-# Using cover metrics from allGEDI2AB, isolate the shot_number values that meet filtering criteria
-excluded_shots <- allGEDI2AB %>%
-  filter(Age_category == ">40", 
-         str_detect(Degradation, "Burned"), 
-         cover > 0.3) %>%
-  pull(shot_number)
-
-# Remove rows with those `shot_number` values from allGEDI2AB
-
-allGEDI <- allGEDI %>%
-  filter(!shot_number %in% excluded_shots)
-
-allGEDI2A <- allGEDI2A %>%
-  filter(!shot_number %in% excluded_shots)
-
-allGEDI2AB <- allGEDI2AB %>%
-  filter(!shot_number %in% excluded_shots)
-
-allGEDI2AB_ALS <- allGEDI2AB_ALS%>%
-  filter(!shot_number %in% excluded_shots)
-
-allGEDI2AB_amp <- allGEDI2AB_amp %>%
-  filter(!shot_number %in% excluded_shots)
+# # Extra validation step: removing unclassified burned forest below 0.3 cover (predominantly misclassified farmland)
+# 
+# # Using cover metrics from allGEDI2AB, isolate the shot_number values that meet filtering criteria
+# excluded_shots <- allGEDI2AB %>%
+#   filter(Age_category == ">40", 
+#          str_detect(Degradation, "Burned"), 
+#          cover > 0.3) %>%
+#   pull(shot_number)
+# 
+# # Remove rows with those `shot_number` values from allGEDI2AB
+# 
+# allGEDI <- allGEDI %>%
+#   filter(!shot_number %in% excluded_shots)
+# 
+# allGEDI2A <- allGEDI2A %>%
+#   filter(!shot_number %in% excluded_shots)
+# 
+# allGEDI2AB <- allGEDI2AB %>%
+#   filter(!shot_number %in% excluded_shots)
+# 
+# allGEDI2AB_ALS <- allGEDI2AB_ALS%>%
+#   filter(!shot_number %in% excluded_shots)
+# 
+# allGEDI2AB_amp <- allGEDI2AB_amp %>%
+#   filter(!shot_number %in% excluded_shots)
 
 
 # Write to file
@@ -741,24 +741,24 @@ rhz_col <- "rhz96"
 ccc_results_list <- list()
 
 # Height Calculations
-add_ccc_result("All", calculate_ccc(allGEDI2AB_ALSfilter2, rh_col, rhz_col), "Height")
-add_ccc_result("Intact", calculate_ccc(allGEDI2AB_ALSfilter2, rh_col, rhz_col, "Degradation == 'Intact'"), "Height")
-add_ccc_result("Logged", calculate_ccc(allGEDI2AB_ALSfilter2, rh_col, rhz_col, "Degradation == 'Logged'"), "Height")
-add_ccc_result("Burned 1-10", calculate_ccc(allGEDI2AB_ALSfilter2, rh_col, rhz_col, "burn_freq %in% 1:10"), "Height")
-add_ccc_result("Burned 1", calculate_ccc(allGEDI2AB_ALSfilter2, rh_col, rhz_col, "burn_freq == 1"), "Height")
-add_ccc_result("Burned 2", calculate_ccc(allGEDI2AB_ALSfilter2, rh_col, rhz_col, "burn_freq == 2"), "Height")
-add_ccc_result("Burned 3", calculate_ccc(allGEDI2AB_ALSfilter2, rh_col, rhz_col, "burn_freq == 3"), "Height")
-add_ccc_result("Burned 4-6", calculate_ccc(allGEDI2AB_ALSfilter2, rh_col, rhz_col, "burn_freq %in% 4:6"), "Height")
+add_ccc_result("All", calculate_ccc(allGEDI2AB_ALS, rh_col, rhz_col), "Height")
+add_ccc_result("Intact", calculate_ccc(allGEDI2AB_ALS, rh_col, rhz_col, "Degradation == 'Intact'"), "Height")
+add_ccc_result("Logged", calculate_ccc(allGEDI2AB_ALS, rh_col, rhz_col, "Degradation == 'Logged'"), "Height")
+add_ccc_result("Burned 1-10", calculate_ccc(allGEDI2AB_ALS, rh_col, rhz_col, "burn_freq %in% 1:10"), "Height")
+add_ccc_result("Burned 1", calculate_ccc(allGEDI2AB_ALS, rh_col, rhz_col, "burn_freq == 1"), "Height")
+add_ccc_result("Burned 2", calculate_ccc(allGEDI2AB_ALS, rh_col, rhz_col, "burn_freq == 2"), "Height")
+add_ccc_result("Burned 3", calculate_ccc(allGEDI2AB_ALS, rh_col, rhz_col, "burn_freq == 3"), "Height")
+add_ccc_result("Burned 4-6", calculate_ccc(allGEDI2AB_ALS, rh_col, rhz_col, "burn_freq %in% 4:6"), "Height")
 
 # Canopy Cover Calculations (fixed, not based upon rh value)
-add_ccc_result("All", calculate_ccc_c(allGEDI2AB_ALSfilter2, "cover", "cancov"), "Canopy Cover")
-add_ccc_result("Intact", calculate_ccc_c(allGEDI2AB_ALSfilter2, "cover", "cancov", "Degradation == 'Intact'"), "Canopy Cover")
-add_ccc_result("Logged", calculate_ccc_c(allGEDI2AB_ALSfilter2, "cover", "cancov", "Degradation == 'Logged'"), "Canopy Cover")
-add_ccc_result("Burned 1-10", calculate_ccc_c(allGEDI2AB_ALSfilter2, "cover", "cancov", "burn_freq %in% 1:10"), "Canopy Cover")
-add_ccc_result("Burned 1", calculate_ccc_c(allGEDI2AB_ALSfilter2, "cover", "cancov", "burn_freq == 1"), "Canopy Cover")
-add_ccc_result("Burned 2", calculate_ccc_c(allGEDI2AB_ALSfilter2, "cover", "cancov", "burn_freq == 2"), "Canopy Cover")
-add_ccc_result("Burned 3", calculate_ccc_c(allGEDI2AB_ALSfilter2, "cover", "cancov", "burn_freq == 3"), "Canopy Cover")
-add_ccc_result("Burned 4-6", calculate_ccc_c(allGEDI2AB_ALSfilter2, "cover", "cancov", "burn_freq %in% 4:6"), "Canopy Cover")
+add_ccc_result("All", calculate_ccc_c(allGEDI2AB_ALS, "cover", "cancov"), "Canopy Cover")
+add_ccc_result("Intact", calculate_ccc_c(allGEDI2AB_ALS, "cover", "cancov", "Degradation == 'Intact'"), "Canopy Cover")
+add_ccc_result("Logged", calculate_ccc_c(allGEDI2AB_ALS, "cover", "cancov", "Degradation == 'Logged'"), "Canopy Cover")
+add_ccc_result("Burned 1-10", calculate_ccc_c(allGEDI2AB_ALS, "cover", "cancov", "burn_freq %in% 1:10"), "Canopy Cover")
+add_ccc_result("Burned 1", calculate_ccc_c(allGEDI2AB_ALS, "cover", "cancov", "burn_freq == 1"), "Canopy Cover")
+add_ccc_result("Burned 2", calculate_ccc_c(allGEDI2AB_ALS, "cover", "cancov", "burn_freq == 2"), "Canopy Cover")
+add_ccc_result("Burned 3", calculate_ccc_c(allGEDI2AB_ALS, "cover", "cancov", "burn_freq == 3"), "Canopy Cover")
+add_ccc_result("Burned 4-6", calculate_ccc_c(allGEDI2AB_ALS, "cover", "cancov", "burn_freq %in% 4:6"), "Canopy Cover")
 
 # Combine all results into a single dataframe
 ccc_results <- do.call(rbind, ccc_results_list)
@@ -787,14 +787,14 @@ relative_bias <- numeric(length(conditions))
 lins_cc <- character(length(conditions))  # Lin's CCC will be stored as a character string
 
 # Calculate mean actual height
-mean_actual <- mean(allGEDI2AB_ALSfilter2[[rhz_col]], na.rm = TRUE)
+mean_actual <- mean(allGEDI2AB_ALS[[rhz_col]], na.rm = TRUE)
 
 for (i in seq_along(conditions)) {
   condition <- conditions[i]
   if (condition == "All") {
     burned_subset <- allGEDI2AB_ALS
   } else if (condition == "burned") {
-    burned_subset <- handle_burned_condition(allGEDI2AB_ALSfilter2)
+    burned_subset <- handle_burned_condition(allGEDI2AB_ALS)
   } else {
     burned_subset <- allGEDI2AB_ALS %>% filter(!!rlang::parse_expr(condition))
   }
@@ -1236,7 +1236,7 @@ print(pai_violin)
 # PCA for mixture of GEDI variables and height/ waveform summaries to assess forest condition
 
 # Keep the Degradation variable separate before PCA
-degradation_type <- allGEDI$Degradation
+degradation_type <- allGEDI2AB$Degradation
 
 # Remove unnecessary columns for PCA, but keep Degradation out for later use
 allGEDI2ABPCA <- allGEDI2AB%>%
@@ -1258,13 +1258,10 @@ allGEDI2ABPCA <- allGEDI2ABPCA %>%
 
 
 
-# Remove unnecessary columns for PCA, but keep Degradation out for later use
-allGEDI2ABPCA <- allGEDI%>%
-  select(rh98, agbd, fhd_normal, cover, pai)
-
-
-
-
+# # Remove unnecessary columns for PCA, but keep Degradation out for later use (De Conta run)
+# allGEDI2ABPCA <- allGEDI%>%
+#   select(rh98, agbd, fhd_normal, cover, pai)
+# 
 
 # Remove geometry
 allGEDI2ABPCA <- allGEDI2ABPCA %>%
@@ -1529,7 +1526,26 @@ print(figure6)
 
 
 
-## Distribution of the data plots for supplementary per degaradtion type
+
+
+## PCA variable correlations used to aid informing the removal of highly correlated loadings (run before the PCA is applied)
+correlation_matrix <- cor(allGEDI2ABPCA, use = "complete.obs", method = "pearson")
+
+non_numeric_columns <- sapply(allGEDI2ABPCA, function(col) !is.numeric(col))
+non_numeric_columns_names <- names(allGEDI2ABPCA)[non_numeric_columns]
+print(non_numeric_columns_names)
+
+corrplot(correlation_matrix, method = "color", tl.cex = 0.8, number.cex = 0.7)  # Customize font sizes
+
+plot(allGEDI2ABPCA$cover, allGEDI2ABPCA$pai)
+
+
+
+
+
+
+
+## Distribution of the data plots for supplementary per degradtion type
 
 # Create combined data with an indicator for each filter
 degradation_combined <- bind_rows(
@@ -1537,7 +1553,7 @@ degradation_combined <- bind_rows(
     mutate(Filter = "Original"),
   allGEDI2ABfilter1 %>%
     mutate(Filter = "Sensitivity > 0.98"),
-  allGEDI2ABfilter2 %>%
+  allGEDI2AB %>%
     mutate(Filter = "Sensitivity > 0.98 & Solar Elevation < 0")
 )
 
@@ -1568,19 +1584,19 @@ plot(figure_7)
 
 
 
-## PCA variable correlations used to aid informing the removal of highly correlated loadings
-correlation_matrix <- cor(allGEDI2ABPCA, use = "complete.obs", method = "pearson")  # You can replace 'pearson' with 'spearman' or 'kendall'
-print(correlation_matrix)
+
+# Validation extra
+
+allGEDI2AB <- allGEDI2AB %>%
+      left_join(landsat_treecover_df, by = "shot_number")
+
+allGEDI2AB_ALS <- allGEDI2AB_ALS %>%
+     left_join(landsat_treecover_df, by = "shot_number")
+ burnedover40 <- excluded_shots <- allGEDI2AB %>%
+      filter(Age_category == ">40", 
+          str_detect(Degradation, "Burned"))
 
 
-non_numeric_columns <- sapply(allGEDI2ABPCA, function(col) !is.numeric(col))
-non_numeric_columns_names <- names(allGEDI2ABPCA)[non_numeric_columns]
-print(non_numeric_columns_names)
-
-library(corrplot)
-corrplot(correlation_matrix, method = "color", tl.cex = 0.8, number.cex = 0.7)  # Customize font sizes
-
-plot(allGEDI2ABPCA$cover, allGEDI2ABPCA$pai)
 
 
 

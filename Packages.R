@@ -6,7 +6,6 @@ library(waveformlidar)
 library(data.table)
 
 
-
 # Data reading
 #library(xlread)
 library(vroom)
@@ -20,12 +19,12 @@ library(tidyverse)
 library(broom)
 library(purrr)
 
-
-# Processing
+# Processing/ modelling
 library(lidR)
 library(chewie)
 library(ca)
 library(waveformlidar)
+library(nnet)
 
 # Spatial data
 library(sf)
@@ -39,10 +38,16 @@ library(gtsummary)
 # Visualisation
 library(mapview)
 library(ggplot2)
+library(ggeffects)
 library(plotly)
 library(leafgl)
 library(patchwork)
 library(grid)
+library(corrplot)
+#check
+library(performance)
+library(kableExtra)
+library(scales)
 
 # Communications
 library(cli)
