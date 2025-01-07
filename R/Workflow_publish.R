@@ -1,5 +1,5 @@
-## Script for the analysis of paper 'Doyle et al...' for the validation of the use of GEDI data 
-## in degraded Amazon rainforest
+## Script for the analysis of paper 'Doyle et al., 2024' for the validation of the use of GEDI data 
+## in degraded Amazon rainforest to investigate forest condition
 
 # Reload all packages and functions
 reload <- function() {
@@ -1547,6 +1547,9 @@ plot_model_sup <- (fit_nplot_mnlr(pc_ratio) | fit_nplot_mnlr(pc_sum)) /
 plot_model_sup
 
 plot_model <- fit_nplot_mnlr(pc_ratio)
+plot_model <- plot_model +
+  labs(x = "PC1/PC2 ratio (PCR)")
+
 plot_model
 
 # Save the plot
