@@ -10,7 +10,7 @@ This repository contains R Markdown and a workflow script for downloading, pre-p
 
 Publication:
 
-Repository: [DOI: 10.5281/zenodo.14103329](https://doi.org/10.5281/zenodo.14103329).
+Repository: DOI: 10.5281/zenodo.14103328
 
 **To evaluate the use of GEDI data to inform forest condition along a gradient of forest degradation, this study aimed to:**
 
