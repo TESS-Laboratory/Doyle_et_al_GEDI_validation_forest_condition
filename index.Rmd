@@ -1,7 +1,3 @@
----
----
----
-
 # Analysis code for "Evaluating GEDI for quantifying forest condition across a gradient of degradation and recovery in Amazonian rainforests"
 
 This repository contains R Markdown and a workflow script for downloading, pre-processing, analysing and visualising the data presented in Doyle et al. (2024).
