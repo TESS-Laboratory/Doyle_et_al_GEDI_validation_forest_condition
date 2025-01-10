@@ -12,8 +12,10 @@ Repository: DOI: 10.5281/zenodo.14103328
 
 **To evaluate the use of GEDI data to inform forest condition along a gradient of forest degradation, this study aimed to:**
 
-(A) Compare the relative accuracy of estimated height profiles and canopy cover derived from spaceborne lidar against comparable metrics derived from airborne lidar (ALS), across various forest conditions
-(B) Evaluate GEDI forest structure variation along a gradient of forest condition
+(A) Compare the relative accuracy of estimated height profiles and canopy cover derived from spaceborne lidar against comparable metrics derived from airborne lidar (ALS), across various forest conditions.
+
+(B) Evaluate GEDI forest structure variation along a gradient of forest condition.
+
 (C) Investigate the potential of principal component analysis to derive a continuous descriptor of forest condition that characterises the forest degradation continuum, using GEDI data.
 
 ## File structure
@@ -42,7 +44,7 @@ The following datasets were used to define the forest condition gradient and val
 
 2.  MapBiomas Fire Frequency (version 3.0) downloaded from Google Earth Engine toolkit, Rio Cautario (2023) and DAAC sites (2018/2021); <https://earthengine.googlesource.com/users/mapbiomas/user-toolkit/+/59f6cf84a1c91fb9fe116c939910bb8453302e60/mapbiomas-user-toolkit-download-mosaics.js>
 
-3.  MapBiomas Project - Collection 8 of annual series of maps of Land Cover and Use in Brazil (Souza et al., 2020), for Rio Cautario site validation (2019 - 2022); [https://plataforma.brasil.mapbiomas.org/](https://plataforma.brasil.mapbiomas.org/cobertura?activeBaseMap=9&layersOpacity=100&activeModule=coverage&activeModuleContent=coverage%3Acoverage_main&activeYear=2023&mapPosition=-15.114553%2C-51.459961%2C4&timelineLimitsRange=1985%2C2023&baseParams%5BgroupType%5D=geometry&baseParams%5BactiveClassTreeOptionValue%5D=default&baseParams%5BactiveClassTreeNodeIds%5D=1%2C7%2C8%2C9%2C10%2C11%2C2%2C12%2C13%2C14%2C15%2C16%2C3%2C18%2C19%2C28%2C30%2C31%2C32%2C33%2C34%2C29%2C35%2C36%2C37%2C38%2C20%2C21%2C4%2C22%2C23%2C24%2C25%2C5%2C26%2C27%2C6&baseParams%5BactiveSubmodule%5D=coverage_main&baseParams%5ByearRange%5D=1985-2023){.uri}
+3.  MapBiomas Project - Collection 8 of annual series of maps of Land Cover and Use in Brazil (Souza et al., 2020), for Rio Cautario site validation (2019 - 2022); [https://plataforma.brasil.mapbiomas.org/](https://plataforma.brasil.mapbiomas.org/cobertura?activeBaseMap=9&layersOpacity=100&activeModule=coverage&activeModuleContent=coverage%3Acoverage_main&activeYear=2023&mapPosition=-15.114553%2C-51.459961%2C4&timelineLimitsRange=1985%2C2023&baseParams%5BgroupType%5D=geometry&baseParams%5BactiveClassTreeOptionValue%5D=default&baseParams%5BactiveClassTreeNodeIds%5D=1%2C7%2C8%2C9%2C10%2C11%2C2%2C12%2C13%2C14%2C15%2C16%2C3%2C18%2C19%2C28%2C30%2C31%2C32%2C33%2C34%2C29%2C35%2C36%2C37%2C38%2C20%2C21%2C4%2C22%2C23%2C24%2C25%2C5%2C26%2C27%2C6&baseParams%5BactiveSubmodule%5D=coverage_main&baseParams%5ByearRange%5D=1985-2023)
 
 ## References
 
