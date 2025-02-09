@@ -123,7 +123,7 @@ filter_als <- function(LAScatalog){
 # GEDI FUNCTIONS
 
 
-gedi2A_batch_download <- function(poly_folder_path, start_date, end_date, fgb_output_folder) {
+gedi2A_batch_download <- function(poly_folder_path, start_date, end_date, fgb_output_folder, als_year) {
   
   # List all shapefiles in folder
   shapefiles <- list.files(poly_folder_path, pattern = "\\.shp$", full.names = TRUE)
@@ -195,7 +195,9 @@ gedi2A_batch_download <- function(poly_folder_path, start_date, end_date, fgb_ou
     
     # Add a new column with polygon ALS CRS for future reference
     gedi2a_sf <- gedi2a_sf %>%
-      mutate(ALS_CRS = substr(basename(polygon_file), 7, 9))
+      mutate(ALS_CRS = substr(basename(polygon_file), 7, 9),
+             ALS_year = als_year)  # Assign ALS_year
+    
     
     # Print information about the data frame before saving
     #cat("Summary of gedi2a_sf:\n")
@@ -301,9 +303,6 @@ gedi4A_batch_download <- function(poly_folder_path, start_date, end_date, fgb_ou
       
       collect_gedi(gedi_find = gedi4a_search)
     
-    # Add a new column with polygon ALS CRS for future reference
-    gedi4a_sf <- gedi4a_sf %>%
-      mutate(ALS_CRS = substr(basename(polygon_file), 7, 9))
     
     # Print information about the data frame before saving
     #cat("Summary of gedi4a_sf:\n")
@@ -726,6 +725,301 @@ lidar_preds <- function(Z, ReturnNumber, min = 0, max = Inf) {
   out
 }
 
+
+
+
+# MULTISPECTRAL DATA PROCESSING FOR GEDI FOOTPRINT EXTRACTION OF DATA
+
+# Function to pre-process multispectral secondary forest data for a given year
+process_secondary_forest <- function(year) {
+  
+  # Set directories dynamically based on the year
+  data_folder <- paste0("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Input_data/Secondary_forest/", year)
+  output_folder <- paste0("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/Secondary_forest_classification/", year)
+  
+  # Create output directory if it doesn't exist
+  dir.create(output_folder, recursive = TRUE, showWarnings = FALSE)
+  
+  # Load shapefiles
+  sites_west <- read_sf("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Input_data/Secondary_forest/secondary_polygon_west.shp")
+  sites_east <- read_sf("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Input_data/Secondary_forest/secondary_polygon_east.shp")
+  
+  # List raster files
+  raster_files <- list.files(data_folder, pattern = "\\.tif$", full.names = TRUE)
+  
+  # Sort rasters to match naming convention
+  raster_files <- sort(raster_files)
+  
+  # Ensure filenames are assigned correctly
+  raster_mapping <- list(
+    "0000000000-0000000000" = sites_west,  # First file - Crop with West
+    "0000000000-0000065536" = sites_east,  # Second file - Crop with East
+    "0000065536-0000065536" = sites_east   # Third file - Crop with East
+  )
+  
+  cropped_rasters <- list()  # Store cropped raster objects
+  
+  for (raster_path in raster_files) {
+    
+    raw_raster <- raster(raster_path)
+    
+    # Ensure CRS matches polygons (convert if needed)
+    if (!compareCRS(raw_raster, sites_west)) {  
+      raw_raster <- projectRaster(raw_raster, crs = crs(sites_west))
+    }
+    
+    # Extract only the numeric ID from the filename
+    filename_id <- tools::file_path_sans_ext(basename(raster_path))
+    filename_id <- sub(".*-(\\d{10}-\\d{10})$", "\\1", filename_id)  # Extract correct pattern
+    
+    if (filename_id %in% names(raster_mapping)) {
+      crop_polygon <- raster_mapping[[filename_id]]
+      cropped_raster <- crop(raw_raster, crop_polygon)
+      
+      # Save cropped raster
+      cropped_raster_path <- paste0(output_folder, "/", filename_id, "_cropped.tif")
+      writeRaster(cropped_raster, cropped_raster_path, overwrite = TRUE)
+      
+      # Store for merging
+      cropped_rasters <- append(cropped_rasters, list(cropped_raster))
+      
+      # Remove objects from memory
+      rm(raw_raster, cropped_raster)
+      gc()
+    } else {
+      message("Skipping unrecognized file: ", raster_path)
+    }
+  }
+  
+  # Merge all cropped rasters using raster::merge()
+  if (length(cropped_rasters) > 0) {
+    merged_secondary <- do.call(merge, cropped_rasters)
+    
+    # Save final merged raster
+    merged_raster_path <- paste0(output_folder, "/secondaryforest", year, ".tif")
+    writeRaster(merged_secondary, merged_raster_path, overwrite = TRUE)
+    
+    final_raster <- raster(merged_raster_path)
+    assign(paste0("secondary_forest_", year), final_raster, envir = .GlobalEnv)
+    
+    # Visualise 
+    mapview(final_raster, layer.name = paste("Secondary forest age", year), na.color = "transparent")
+    
+  }
+  
+  # Clean up
+  rm(cropped_rasters)
+  gc()
+}
+
+# Function to process fire frequency data (uses functions from process_secondary_forest)
+process_fire_frequency <- function(year) {
+
+  # Set base directories
+  data_folder <- paste0("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Input_data/Fire_data/", year)
+  output_folder <- paste0("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/Fire_data/", year)
+  
+  # Create output directory if it doesn't exist
+  dir.create(output_folder, recursive = TRUE, showWarnings = FALSE)
+  
+  # Load secondary forest raster for cropping
+  secondaryforest_path <- paste0("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/Secondary_forest_classification/", year, "/secondaryforest", year, ".tif")
+  
+  if (!file.exists(secondaryforest_path)) {
+    stop("Secondary forest raster for year ", year, " not found! Ensure it has been created first.")
+  }
+  
+  secondaryforest <- raster(secondaryforest_path)
+  
+  # **List only "Fire Frequency" raster files**
+  raster_files <- list.files(data_folder, pattern = "Fire_Frequency_.*\\.tif$", full.names = TRUE)
+  
+  # Process rasters (same logic as before)
+  cropped_rasters <- list()
+  
+  for (raster_path in raster_files) {
+    raw_raster <- raster(raster_path)
+    
+    if (!compareCRS(raw_raster, secondaryforest)) {  
+      raw_raster <- projectRaster(raw_raster, crs = crs(secondaryforest))
+    }
+    
+    cropped_raster <- crop(raw_raster, secondaryforest)
+    filename_id <- tools::file_path_sans_ext(basename(raster_path))
+    
+    cropped_raster_path <- paste0(output_folder, "/", filename_id, "_cropped.tif")
+    writeRaster(cropped_raster, cropped_raster_path, overwrite = TRUE)
+    
+    cropped_rasters <- append(cropped_rasters, list(cropped_raster))
+    
+    rm(raw_raster, cropped_raster)
+    gc()
+  }
+  
+  if (length(cropped_rasters) > 0) {
+    merged_fire_raster <- do.call(merge, cropped_rasters)
+    
+    merged_raster_path <- paste0(output_folder, "/fire_frequency_", year, ".tif")
+    writeRaster(merged_fire_raster, merged_raster_path, overwrite = TRUE)
+    
+    final_raster <- raster(merged_raster_path)
+    assign(paste0("fire_frequency_", year), final_raster, envir = .GlobalEnv)
+    
+    mapview(final_raster, layer.name = paste("Fire Frequency", year), na.color = "transparent")
+  }
+  
+  rm(cropped_rasters)
+  gc()
+}
+
+# Function to process Time Since Fire data (uses functions from process_secondary_forest)
+process_time_since_fire <- function(year) {
+  
+  # Set base input and output directories
+  data_folder <- paste0("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Input_data/Fire_data/", year)
+  output_folder <- paste0("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/Fire_data/", year)
+  
+  # Create output directory if it doesn't exist
+  dir.create(output_folder, recursive = TRUE, showWarnings = FALSE)
+  
+  # Load the secondary forest raster for cropping extent
+  secondaryforest_path <- paste0("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/Secondary_forest_classification/", year, "/secondaryforest", year, ".tif")
+  
+  if (!file.exists(secondaryforest_path)) {
+    stop("Secondary forest raster for year ", year, " not found! Ensure it has been created first.")
+  }
+  
+  secondaryforest <- raster(secondaryforest_path)
+  
+  # List only "Time Since Fire" raster files
+  raster_files <- list.files(data_folder, pattern = "Time_Since_Last_Fire.*\\.tif$", full.names = TRUE)
+  
+  # Sort rasters to maintain order
+  raster_files <- sort(raster_files)
+  
+  cropped_rasters <- list()  # Store cropped raster objects
+  
+  for (raster_path in raster_files) {
+    
+    raw_raster <- raster(raster_path)
+    
+    # Ensure CRS matches the secondary forest raster (convert if needed)
+    if (!compareCRS(raw_raster, secondaryforest)) {  
+      raw_raster <- projectRaster(raw_raster, crs = crs(secondaryforest))
+    }
+    
+    # Crop using the secondary forest extent
+    cropped_raster <- crop(raw_raster, secondaryforest)
+    
+    # Extract filename
+    filename_id <- tools::file_path_sans_ext(basename(raster_path))
+    
+    # Save cropped raster
+    cropped_raster_path <- paste0(output_folder, "/", filename_id, "_cropped.tif")
+    writeRaster(cropped_raster, cropped_raster_path, overwrite = TRUE)
+    
+    # Store for merging
+    cropped_rasters <- append(cropped_rasters, list(cropped_raster))
+    
+    # Remove objects from memory
+    rm(raw_raster, cropped_raster)
+    gc()
+  }
+  
+  # Merge all cropped rasters using raster::merge()
+  if (length(cropped_rasters) > 0) {
+    merged_time_fire_raster <- do.call(merge, cropped_rasters)
+    
+    # Save final merged raster
+    merged_raster_path <- paste0(output_folder, "/time_since_fire_", year, ".tif")
+    writeRaster(merged_time_fire_raster, merged_raster_path, overwrite = TRUE)
+    
+    final_raster <- raster(merged_raster_path)
+    assign(paste0("time_since_fire_", year), final_raster, envir = .GlobalEnv)
+    
+    # Load and visualize
+    mapview(final_raster, layer.name = paste("Time Since Fire", year), na.color = "transparent")
+
+  }
+  
+  # Clean up
+  rm(cropped_rasters)
+  gc()
+}
+
+# Function to process Forest Validation data (uses functions from process_secondary_forest)
+process_forest_validation <- function(year) {
+  
+  # Set base directories
+  input_folder <- paste0("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Input_data/Forest_validation/", year)
+  output_folder <- paste0("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/Forest_Validation/", year)
+  
+  # Create output directory if it doesn't exist
+  dir.create(output_folder, recursive = TRUE, showWarnings = FALSE)
+  
+  # Load the secondary forest raster for cropping extent
+  secondaryforest_path <- paste0("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/Secondary_forest_classification/", year, "/secondaryforest", year, ".tif")
+  
+  if (!file.exists(secondaryforest_path)) {
+    stop("Secondary forest raster for year ", year, " not found! Ensure it has been created first.")
+  }
+  
+  secondaryforest <- raster(secondaryforest_path)
+  
+  # **List only "Forest Validation" raster files**
+  raster_files <- list.files(input_folder, pattern = "Forest_Formation_.*\\.tif$", full.names = TRUE)
+  
+  # Sort rasters to maintain order
+  raster_files <- sort(raster_files)
+  
+  cropped_rasters <- list()  # Store cropped raster objects
+  
+  for (raster_path in raster_files) {
+    
+    raw_raster <- raster(raster_path)
+    
+    # Ensure CRS matches the secondary forest raster (convert if needed)
+    if (!compareCRS(raw_raster, secondaryforest)) {  
+      raw_raster <- projectRaster(raw_raster, crs = crs(secondaryforest))
+    }
+    
+    # Crop using the secondary forest extent
+    cropped_raster <- crop(raw_raster, secondaryforest)
+    
+    # Extract filename
+    filename_id <- tools::file_path_sans_ext(basename(raster_path))
+    
+    # Save cropped raster
+    cropped_raster_path <- paste0(output_folder, "/", filename_id, "_cropped.tif")
+    writeRaster(cropped_raster, cropped_raster_path, overwrite = TRUE)
+    
+    # Store for merging
+    cropped_rasters <- append(cropped_rasters, list(cropped_raster))
+    
+    # Remove objects from memory
+    rm(raw_raster, cropped_raster)
+    gc()
+  }
+  
+  # Merge all cropped rasters using raster::merge()
+  if (length(cropped_rasters) > 0) {
+    merged_forest_validation <- do.call(merge, cropped_rasters)
+    
+    # Save final merged raster
+    merged_raster_path <- paste0(output_folder, "/forest_validation_", year, ".tif")
+    writeRaster(merged_forest_validation, merged_raster_path, overwrite = TRUE)
+    
+    final_raster <- raster(merged_raster_path)
+    assign(paste0("forest_validation_", year), final_raster, envir = .GlobalEnv)
+    
+    # Load and visualize
+    mapview(final_raster, layer.name = paste("Forest Validation", year), na.color = "transparent")
+  }
+  
+  # Clean up
+  rm(cropped_rasters)
+  gc()
+}
 
 
 

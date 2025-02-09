@@ -1,4 +1,4 @@
----
+------------------------------------------------------------------------
 
 # Analysis code for "Evaluating GEDI for quantifying forest condition across a gradient of degradation and recovery in Amazonian rainforests"
 
