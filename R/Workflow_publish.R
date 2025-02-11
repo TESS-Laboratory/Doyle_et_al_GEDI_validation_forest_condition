@@ -650,6 +650,17 @@ rm(secondary_forest_rasters, burn_frequency_rasters, time_since_fire_rasters, fo
 
 
 
+ # TESTING TO GET THE CLASSIFICATION RIGHT 
+
+sf::st_write(allGEDI2AB_extraction, "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI2AB_extraction.fgb", delete_dsn = TRUE, overwrite = TRUE)
+#allGEDI2AB_extraction <- read_sf("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI2AB_extraction.fgb")
+
+
+
+
+
+
+
 # ------ Statistics (Aim 1)  ---------
 
 # Accuracy assessment: calculate correspondence/ correlation between GEDI and ALS

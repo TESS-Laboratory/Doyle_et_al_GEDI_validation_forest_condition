@@ -29,8 +29,7 @@ retile_catalog_pref <- function(catalog) {
 
 
 # Function to process the ALS data catalog (filters, classifies and normalises) 
-process_als <- function(las) 
-{ if (is(las, "LAS"))
+process_als <- function(las) { if (is(las, "LAS"))
 {
   # Filter for duplicates
   dup_las <- filter_duplicates(las)
@@ -117,6 +116,8 @@ filter_als <- function(LAScatalog){
   opt_filter(LAScatalog) <- "-drop_z_above 70"
   return(LAScatalog)
 }
+
+
 
 
 
@@ -303,6 +304,9 @@ gedi4A_batch_download <- function(poly_folder_path, start_date, end_date, fgb_ou
       
       collect_gedi(gedi_find = gedi4a_search)
     
+    # Add a new column with polygon ALS CRS for future reference
+    gedi4a_sf <- gedi4a_sf %>%
+      mutate(ALS_CRS = substr(basename(polygon_file), 7, 9))
     
     # Print information about the data frame before saving
     #cat("Summary of gedi4a_sf:\n")
@@ -317,26 +321,25 @@ gedi4A_batch_download <- function(poly_folder_path, start_date, end_date, fgb_ou
   }
 }
 
+
 # Calculate amplitude proxy from cumulative energy values in GEDI2A data
 gedi_long <- function(gdf) {
   gdf |>
     sf::st_drop_geometry() |>
-    dplyr::select(shot_number, starts_with("rh"), starts_with("rx")) |>
+    dplyr::select(shot_number, ALS_year, starts_with("rh"), starts_with("rx")) |>
     tidyr::pivot_longer(
-      cols = -shot_number,
+      cols = -c(shot_number, ALS_year),  # Ensure ALS_year is excluded from pivot
       names_to = c("type", "interval"),
       names_pattern = "(rh|rx_cum)(\\d+)",
       values_to = "value"
     ) |>
-    dplyr::mutate(
-      interval = as.numeric(interval)
-    ) |>
+    dplyr::mutate(interval = as.numeric(interval)) |>
     tidyr::pivot_wider(
       names_from = type,
       values_from = value
     ) |>
     dplyr::arrange(shot_number, interval) |>
-    dplyr::group_by(shot_number) |>
+    dplyr::group_by(shot_number, ALS_year) |>
     dplyr::mutate(
       rx = rx_cum - dplyr::lead(rx_cum),
       amp = sqrt(max(rx, na.rm = TRUE) - rx + min(rx, na.rm = TRUE))
@@ -356,24 +359,6 @@ filter_reproj_GEDI <- function(data, als_crs_value, epsg_code) {
   
   # Return the transformed data
   return(transformed_data)
-}
-
-# Cleaning/ adding extracted degradation type to datasets
-process_GEDI_degradation <- function(data) {
-  data %>%
-    mutate(Degradation = case_when(
-      burn_freq == 1 ~ "Burned 1",
-      burn_freq == 2 ~ "Burned 2",
-      burn_freq == 3 ~ "Burned 3",
-      burn_freq > 3 ~ "Burned 4+",
-      forest_age < 50 ~ "Logged",
-      forest_age >= 50 ~ "Intact",
-      TRUE ~ NA_character_
-    )) %>%
-    mutate(Age_category = cut(forest_age, breaks = c(-Inf, 6, 15, 25, 40, Inf), 
-                              labels = c("<7", "7-15", "15-25", "25-40", ">40"))) %>%
-    mutate(Age_category2 = cut(forest_age, breaks = c(-Inf, 10, 20, 30, 40, Inf), 
-                               labels = c("<10", "10-20", "20-30", "30-40", ">40")))
 }
 
 
@@ -403,6 +388,9 @@ gedi_cum_long <- function(gdf) {
     ) |>
     dplyr::ungroup()
 }
+
+
+
 
 
 
@@ -1021,7 +1009,105 @@ process_forest_validation <- function(year) {
   gc()
 }
 
+# Function to extract raster values for each ALS year
+process_raster_extractions <- function(df, secondary_forest_rasters, burn_frequency_rasters, time_since_fire_rasters, forest_validation_rasters) {
+  
+  # List of years to process
+  years <- c(2018, 2021, 2023)
+  
+  # Split dataframe by ALS_year
+  df_list <- split(df, df$ALS_year)
+  
+  # Initialize list to store processed dataframes
+  processed_dfs <- list()
+  
+  for (year in years) {
+    
+    df_year <- df_list[[as.character(year)]]
+    
+    # Load corresponding raster layers
+    sf_raster <- secondary_forest_rasters[[as.character(year)]]
+    bf_raster <- burn_frequency_rasters[[as.character(year)]]
+    tsf_raster <- time_since_fire_rasters[[as.character(year)]]
+    fv_raster <- forest_validation_rasters[[as.character(year)]]
+    
+    # Extract values using `raster::extract()` and ensure numeric type
+    df_year$secondary_age <- as.numeric(raster::extract(sf_raster, df_year, method = 'simple'))
+    df_year$burn_frequency <- as.numeric(raster::extract(bf_raster, df_year, method = 'simple'))
+    df_year$time_since_fire <- as.numeric(raster::extract(tsf_raster, df_year, method = 'simple'))
+    df_year$forest_validation <- as.numeric(raster::extract(fv_raster, df_year, method = 'simple'))
+    
+    
+    # Store processed dataframe
+    processed_dfs[[as.character(year)]] <- df_year
+  }
+  
+  # Merge all processed dataframes back together
+  final_df <- bind_rows(processed_dfs)
+  
+  return(final_df)
+}
 
+
+
+
+# GEDI CLASSIFICATION 
+
+
+# Function to calculate how many years since burn instead of year of occurrence
+calculate_years_since_fire <- function(df) {
+  df %>%
+    mutate(
+      years_since_fire = ALS_year - time_since_fire,
+      years_since_fire = ifelse(time_since_fire == 0, NA, years_since_fire)
+    )
+}
+
+
+# Function to filter land that has burned but no longer retains forest classification
+filter_burned_non_forest <- function(df) {
+  df %>%
+    filter(!( !is.na(years_since_fire) & forest_validation == 0 ))
+}
+
+
+# Function to age forest using years since fire if not secondary forest aged, and highlight intact forest
+assign_forest_age <- function(df) {
+  df %>%
+    mutate(
+      forest_age = case_when(
+        secondary_age > 0 ~ secondary_age,  # Keep forest_age if it's greater than 0
+        secondary_age == 0 & !is.na(years_since_fire) ~ years_since_fire,  # Replace 0 with years_since_fire if available
+        TRUE ~ secondary_age  # Otherwise, keep the original secondary_age value
+      ),
+      forest_age = ifelse(is.na(forest_age) | forest_age == 0, 99, forest_age)  # Replace remaining NA or 0 with 99
+    )
+}
+
+
+# Function to extract forest condition from the multispectral data for GEDI points
+process_GEDI_degradation <- function(data) {
+  data %>%
+    mutate(
+      Degradation = case_when(
+        burn_frequency == 1 ~ "Burned 1",
+        burn_frequency == 2 ~ "Burned 2",
+        burn_frequency == 3 ~ "Burned 3",
+        burn_frequency > 3 ~ "Burned 4+",
+        (is.na(burn_frequency) | burn_frequency == 0) & forest_age < 50 ~ "Logged",  # If NOT burned and age < 50
+        (is.na(burn_frequency) | burn_frequency == 0) & forest_age >= 50 ~ "Intact", # If NOT burned and age ≥ 50
+        forest_age == 99 ~ "Intact", # Ensure 99 is classified as Intact
+        TRUE ~ NA_character_
+      ),
+      
+      Age_category = case_when(
+        forest_age == 99 ~ ">40",  # Ensure 99 is classified correctly
+        TRUE ~ as.character(cut(secondary_age, breaks = c(-Inf, 6, 15, 25, 40, Inf), 
+                                labels = c("<7", "7-15", "15-25", "25-40", ">40")))
+      )
+    ) %>%
+    select(-secondary_age, -time_since_fire)
+}
 
 
 
