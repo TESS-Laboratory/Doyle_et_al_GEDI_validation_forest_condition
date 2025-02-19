@@ -1063,51 +1063,94 @@ calculate_years_since_fire <- function(df) {
     )
 }
 
-
-# Function to filter land that has burned but no longer retains forest classification
-filter_burned_non_forest <- function(df) {
+# Function to classify GEDI pixels using secondary forest age, burn frequency,
+# years since burned and forest validation layers
+classify_forest_state <- function(df) {
   df %>%
-    filter(!( !is.na(years_since_fire) & forest_validation == 0 ))
-}
-
-
-# Function to age forest using years since fire if not secondary forest aged, and highlight intact forest
-assign_forest_age <- function(df) {
-  df %>%
+    # Step 1: Create a forest type column (Primary = "P", Secondary = "S")
     mutate(
-      forest_age = case_when(
-        secondary_age > 0 ~ secondary_age,  # Keep forest_age if it's greater than 0
-        secondary_age == 0 & !is.na(years_since_fire) ~ years_since_fire,  # Replace 0 with years_since_fire if available
-        TRUE ~ secondary_age  # Otherwise, keep the original secondary_age value
-      ),
-      forest_age = ifelse(is.na(forest_age) | forest_age == 0, 99, forest_age)  # Replace remaining NA or 0 with 99
-    )
-}
-
-
-# Function to extract forest condition from the multispectral data for GEDI points
-process_GEDI_degradation <- function(data) {
-  data %>%
+      forest_type = ifelse(secondary_age > 0, "S", "P") 
+    ) %>%
+    
+    # Step 2: Assign Time Since Fire (TSF) - Ensure All Numeric
     mutate(
-      Degradation = case_when(
-        burn_frequency == 1 ~ "Burned 1",
-        burn_frequency == 2 ~ "Burned 2",
-        burn_frequency == 3 ~ "Burned 3",
-        burn_frequency > 3 ~ "Burned 4+",
-        (is.na(burn_frequency) | burn_frequency == 0) & forest_age < 50 ~ "Logged",  # If NOT burned and age < 50
-        (is.na(burn_frequency) | burn_frequency == 0) & forest_age >= 50 ~ "Intact", # If NOT burned and age ≥ 50
-        forest_age == 99 ~ "Intact", # Ensure 99 is classified as Intact
-        TRUE ~ NA_character_
-      ),
-      
-      Age_category = case_when(
-        forest_age == 99 ~ ">40",  # Ensure 99 is classified correctly
-        TRUE ~ as.character(cut(secondary_age, breaks = c(-Inf, 6, 15, 25, 40, Inf), 
-                                labels = c("<7", "7-15", "15-25", "25-40", ">40")))
+      TSF = case_when(
+        forest_type == "P" & is.na(years_since_fire) ~ NA_real_,  # Numeric NA
+        forest_type == "P" & !is.na(years_since_fire) ~ as.numeric(years_since_fire),  
+        forest_type == "S" & burn_frequency == 0 ~ NA_real_,
+        TRUE ~ as.numeric(secondary_age)
       )
     ) %>%
-    select(-secondary_age, -time_since_fire)
+    
+    # Step 3: Adjust Burn Frequency *ONLY* if Secondary Forest Age < (Years Since Fire - 2)
+    mutate(
+      burn_frequency1 = ifelse(forest_type == "S" & secondary_age < (years_since_fire - 5), 0, burn_frequency),
+      burn_frequency1 = ifelse(is.na(burn_frequency1), 0, burn_frequency1),
+    
+    # If burn_frequency1 is now 0, set TSF to NA
+    TSF = ifelse(burn_frequency1 == 0 & forest_type == "S", NA_real_, TSF)
+    ) %>%
+    
+    # Step 4: Classify forest state using forest_type and burn frequency
+    mutate(
+      forest_state = case_when(
+        burn_frequency1 == 0 & forest_type == "P" ~ "Intact",  
+        burn_frequency1 == 0 & forest_type == "S" ~ "SU",  
+        burn_frequency1 == 1 & forest_type == "P" ~ "PB1",
+        burn_frequency1 == 2 & forest_type == "P" ~ "PB2",
+        burn_frequency1 >= 3 & forest_type == "P" ~ "PB3+",
+        burn_frequency1 == 1 & forest_type == "S" ~ "SB1",
+        burn_frequency1 == 2 & forest_type == "S" ~ "SB2",
+        burn_frequency1 >= 3 & forest_type == "S" ~ "SB3+",
+        TRUE ~ "Unknown"  
+      )
+    ) %>%
+    
+    # Step 5: Remove primary forests where forest_validation == 0
+    filter(!(forest_type == 0 & forest_validation == 0)) %>%
+    
+    # Step 6: Assign Age Category Based on TSF
+    mutate(
+      age_category = case_when(
+        TSF <= 6 ~ "<7",
+        TSF > 6 & TSF <= 15 ~ "7-15",
+        TSF > 15 & TSF <= 25 ~ "15-25",
+        TSF > 25 & TSF <= 39 ~ "25-40",
+        TRUE ~ NA_character_  # Keep NA for invalid cases
+      )
+    )
 }
+  
+# Function to remove additional columns from classification and project CRS
+
+tidy_classification <- function(df, target_crs = NULL) {
+  df <- df %>%
+    # Tidy dataframe columns by removing unwanted columns
+    select(-secondary_age, -years_since_fire, -forest_validation, -burn_frequency, -forest_type, -time_since_fire) %>%
+    rename(burn_frequency = burn_frequency1)  # Rename column properly
+  
+  # Reproject the dataset for consistency
+  if ("sf" %in% class(df) & !is.null(target_crs)) {
+    df <- st_transform(df, target_crs)
+  }
+  
+  return(df)
+}
+
+# Function to count forest_state occurrences in a dataset
+count_forest_state <- function(df, dataset_name) {
+  df <- st_drop_geometry(df)  # ✅ Convert to regular dataframe if it's sf
+  df %>%
+    count(forest_state) %>%
+    mutate(dataset = dataset_name) %>%
+    pivot_wider(names_from = forest_state, values_from = n, values_fill = list(n = 0))
+}
+
+
+
+
+
+
 
 
 
@@ -1209,7 +1252,7 @@ calculate_stats <- function(data, rh_col, rhz_col, condition = NULL) {
 }
 # Function to handle 'burned' condition
 handle_burned_condition <- function(data) {
-  data %>% filter(grepl("Burned", Degradation, ignore.case = TRUE))
+  data %>% filter(grepl("Burned", forest_state, ignore.case = TRUE))
 }
 
 
@@ -1249,17 +1292,24 @@ calculate_pearson <- function(data, condition, rh_col, rhz_col) {
 
 
 
+
+
+
+
+
+
 # Multinomial linear regression model
 
 
-# fit multinomial logistic regression and plot it
+# Fit multinomial logistic regression
 fit_nplot_mnlr <- function(control_var) {
   control_var <- enquo(control_var)
   # Create the formula using the symbol
-  formula <- as.formula(paste("Degradation ~", quo_name(control_var)))
+  formula <- as.formula(paste("forest_state ~", quo_name(control_var)))
   mnlr <- nnet::multinom(formula, data = gpca)
   
   cli::cli_alert_info("{quo_name(control_var)} model AIC: {AIC(mnlr)}")
+  
   # Predict probabilities using marginaleffects package
   preds <- as_tibble(marginaleffects::predictions(mnlr, type = "probs"))
   
@@ -1268,21 +1318,21 @@ fit_nplot_mnlr <- function(control_var) {
     ggplot() +
     aes(x = !!control_var, y = estimate, fill = group, group = group) +
     geom_ribbon(aes(ymin = conf.low, ymax = conf.high),
-                color = NA,  # Remove the gray outline by setting to NA
+                color = NA,  # Remove gray outline
                 alpha = 0.8   # Transparency for ribbons
     ) +
-    scale_fill_manual(values = colors, name = "Condition") +  # Use custom color palette
+    scale_fill_manual(values = forest_state_colors, name = "Forest State") +  
     theme_linedraw() +
     theme_fancy() +
     scale_y_sqrt() +
     labs(
       x = quo_name(control_var),
       y = "Probability", 
-      fill = "Condition",  # Update legend title
+      fill = "Forest State",  # Legend title update
       caption = glue::glue("AIC: {round(AIC(mnlr),1)}")  # Add AIC caption
     ) +
     theme(
-      legend.position = "right"  # Position legend on the right
+      legend.position = "right"
     )
 }
 
@@ -1291,6 +1341,18 @@ fit_nplot_mnlr <- function(control_var) {
 
 
 # VISUALISATIONS FUNCTIONS
+
+# Function to compute density for smooth coloring
+get_density <- function(x, y, n = 100) {
+  dens <- kde2d(x, y, n = n)  # Compute 2D density with same resolution
+  ix <- findInterval(x, dens$x)
+  iy <- findInterval(y, dens$y)
+  density_values <- dens$z[cbind(ix, iy)]
+  
+  # Normalize density between 0 and 1
+  return((density_values - min(density_values, na.rm = TRUE)) / 
+           (max(density_values, na.rm = TRUE) - min(density_values, na.rm = TRUE)))
+}
 
 ## Plotting theme
 theme_fancy <- function() {
@@ -1314,8 +1376,8 @@ theme_fancy <- function() {
         hjust = 0.5,
         color = "black"
       ),
-      legend.text = element_text(size = 8, color = "black"),
-      legend.title = element_text(size = 8, color = "black"),
+      legend.text = element_text(size = 10, color = "black"),
+      legend.title = element_text(size = 12, color = "black"),
       legend.position = c(0.9, 0.9),
       legend.key.size = unit(0.9, "line"),
       legend.background = element_rect(
