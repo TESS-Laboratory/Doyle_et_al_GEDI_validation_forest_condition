@@ -1106,8 +1106,8 @@ classify_forest_state <- function(df) {
       )
     ) %>%
     
-    # Step 5: Remove primary forests where forest_validation == 0
-    filter(!(forest_type == 0 & forest_validation == 0)) %>%
+    # Step 5: Remove primary forests where burn frequency is 1 or more and no longer has forest_validation == 1
+    filter(!(forest_type == "P" & burn_frequency >= 1 & forest_validation == 0)) %>%
     
     # Step 6: Assign Age Category Based on TSF
     mutate(
@@ -1311,7 +1311,7 @@ fit_nplot_mnlr <- function(control_var) {
   cli::cli_alert_info("{quo_name(control_var)} model AIC: {AIC(mnlr)}")
   
   # Predict probabilities using marginaleffects package
-  preds <- as_tibble(marginaleffects::predictions(mnlr, type = "probs"))
+  preds <- as_tibble(marginaleffects::predictions(mnlr, newdata = "balanced", type = "probs"))
   
   # Plot the results
   preds |>

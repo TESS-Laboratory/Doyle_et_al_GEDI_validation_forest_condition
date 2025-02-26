@@ -633,11 +633,11 @@ forest_state_summaries <- bind_rows(
 
 
 # Write to file
-sf::st_write(allGEDI2A, "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI2A5.fgb", delete_dsn = TRUE, overwrite = TRUE)
-sf::st_write(allGEDI2AB_ALS, "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI2AB_ALS5.fgb", delete_dsn = TRUE, overwrite = TRUE)
-sf::st_write(allGEDI, "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI5.fgb", delete_dsn = TRUE, overwrite = TRUE)
-sf::st_write(allGEDI2AB_amp, "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI2AB_amp5.fgb", delete_dsn = TRUE, overwrite = TRUE)
-sf::st_write(allGEDI2AB, "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI2AB5.fgb", delete_dsn = TRUE, overwrite = TRUE)
+sf::st_write(allGEDI2A, "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI2A.fgb", delete_dsn = TRUE, overwrite = TRUE)
+sf::st_write(allGEDI2AB_ALS, "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI2AB_ALS.fgb", delete_dsn = TRUE, overwrite = TRUE)
+sf::st_write(allGEDI, "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI.fgb", delete_dsn = TRUE, overwrite = TRUE)
+sf::st_write(allGEDI2AB_amp, "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI2AB_amp.fgb", delete_dsn = TRUE, overwrite = TRUE)
+sf::st_write(allGEDI2AB, "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI2AB.fgb", delete_dsn = TRUE, overwrite = TRUE)
 
 
 #allGEDI2A <- read_sf("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI2A5.fgb")
@@ -658,38 +658,34 @@ rm(forest_state_summary_transposed, forest_state_summary_wide, common_crs)
 # Accuracy assessment: calculate correspondence/ correlation between GEDI and ALS
 
 # Set rh and rhz columns for calculation (for example, rh25 and rhz25)
-# Run repeatedly along the GEDI profile e.g. rh25, rh50, rh75, rh96
-rh_col <- "rh96"
-rhz_col <- "rhz96"
+# Run repeatedly along the GEDI profile e.g. rh25, rh50, rh75, rh95
+rh_col <- "rh95"
+rhz_col <- "rhz95"
 
 # Initialize an empty list to store results
 ccc_results_list <- list()
 
 # Height Calculations
 add_ccc_result("All", calculate_ccc(allGEDI2AB_ALS, rh_col, rhz_col), "Height")
-add_ccc_result("Intact", calculate_ccc(allGEDI2AB_ALS, rh_col, rhz_col, "forest_state == 'Intact'"), "Height")
+add_ccc_result("PU", calculate_ccc(allGEDI2AB_ALS, rh_col, rhz_col, "forest_state == 'PU'"), "Height")
 add_ccc_result("SU", calculate_ccc(allGEDI2AB_ALS, rh_col, rhz_col, "forest_state == 'SU'"), "Height")
 add_ccc_result("PB1", calculate_ccc(allGEDI2AB_ALS, rh_col, rhz_col, "forest_state == 'PB1'"), "Height")
 add_ccc_result("PB2", calculate_ccc(allGEDI2AB_ALS, rh_col, rhz_col, "forest_state == 'PB2'"), "Height")
 add_ccc_result("PB3+", calculate_ccc(allGEDI2AB_ALS, rh_col, rhz_col, "forest_state == 'PB3+'"), "Height")
-#add_ccc_result("PB4+", calculate_ccc(allGEDI2AB_ALS, rh_col, rhz_col, "forest_state == 'PB4+'"), "Height")
 add_ccc_result("SB1", calculate_ccc(allGEDI2AB_ALS, rh_col, rhz_col, "forest_state == 'SB1'"), "Height")
 add_ccc_result("SB2", calculate_ccc(allGEDI2AB_ALS, rh_col, rhz_col, "forest_state == 'SB2'"), "Height")
 add_ccc_result("SB3+", calculate_ccc(allGEDI2AB_ALS, rh_col, rhz_col, "forest_state == 'SB3+'"), "Height")
-#add_ccc_result("SB4+", calculate_ccc(allGEDI2AB_ALS, rh_col, rhz_col, "forest_state == 'SB4+'"), "Height")
 
 # Canopy Cover Calculations (fixed, not based upon rh value)
 add_ccc_result("All", calculate_ccc_c(allGEDI2AB_ALS, "cover", "cancov"), "Canopy Cover")
-add_ccc_result("Intact", calculate_ccc_c(allGEDI2AB_ALS, "cover", "cancov", "forest_state == 'Intact'"), "Canopy Cover")
+add_ccc_result("PU", calculate_ccc_c(allGEDI2AB_ALS, "cover", "cancov", "forest_state == 'PU'"), "Canopy Cover")
 add_ccc_result("SU", calculate_ccc_c(allGEDI2AB_ALS, "cover", "cancov", "forest_state == 'SU'"), "Canopy Cover")
 add_ccc_result("PB1", calculate_ccc_c(allGEDI2AB_ALS, "cover", "cancov", "forest_state == 'PB1'"), "Canopy Cover")
 add_ccc_result("PB2", calculate_ccc_c(allGEDI2AB_ALS, "cover", "cancov", "forest_state == 'PB2'"), "Canopy Cover")
 add_ccc_result("PB3+", calculate_ccc_c(allGEDI2AB_ALS, "cover", "cancov", "forest_state == 'PB3+'"), "Canopy Cover")
-#add_ccc_result("PB4+", calculate_ccc_c(allGEDI2AB_ALS, "cover", "cancov", "forest_state == 'PB4+'"), "Canopy Cover")
 add_ccc_result("SB1", calculate_ccc_c(allGEDI2AB_ALS, "cover", "cancov", "forest_state == 'SB1'"), "Canopy Cover")
 add_ccc_result("SB2", calculate_ccc_c(allGEDI2AB_ALS, "cover", "cancov", "forest_state == 'SB2'"), "Canopy Cover")
 add_ccc_result("SB3+", calculate_ccc_c(allGEDI2AB_ALS, "cover", "cancov", "forest_state == 'SB3+'"), "Canopy Cover")
-#add_ccc_result("SB4+", calculate_ccc_c(allGEDI2AB_ALS, "cover", "cancov", "forest_state == 'SB4+'"), "Canopy Cover")
 
 # Combine all results into a single dataframe
 ccc_results <- do.call(rbind, ccc_results_list)
@@ -706,11 +702,11 @@ print(ccc_results)
 
 # RMSE calculations
 conditions <- c(
-  "All",  "forest_state == 'Intact'",  
-  "forest_state == 'SU'", 
+  "All",  "forest_state == 'PU'",  
   "forest_state == 'PB1'", 
   "forest_state == 'PB2'", 
-  "forest_state == 'PB3+'", 
+  "forest_state == 'PB3+'",
+  "forest_state == 'SU'", 
   "forest_state == 'SB1'", 
   "forest_state == 'SB2'", 
   "forest_state == 'SB3+'" )
@@ -752,7 +748,7 @@ for (i in seq_along(conditions)) {
 
 # Create a dataframe to store the results
 stats_results <- data.frame(
-  Forest_Condition = c("All", "Intact", "SU", "PB1", "PB2", "PB3+", "SB1", "SB2", "SB3+"),
+  Forest_Condition = c("All", "PU", "PB1", "PB2", "PB3+", "SU","SB1", "SB2", "SB3+"),
   Pearsons_r = pearsons_r,
   p_value = p_values,  # Include p-value for significance testing
   RMSE_m = rmse_m,
@@ -762,9 +758,14 @@ stats_results <- data.frame(
   Lins_CCC = lins_cc  # Add Lin's CCC to the dataframe
 )
 
-# Format p_values with conditional notation
-stats_results$p_value <- ifelse(stats_results$p_value < 0.0001, "< 0.0001", sprintf("%.4f", stats_results$p_value))
+# Format all numeric columns except p_value to one decimal place
+stats_results <- stats_results %>%
+  mutate(across(where(is.numeric), ~ sprintf("%.1f", .)))  # Format to 1 decimal place
 
+# Ensure p_value keeps its conditional notation
+stats_results$p_value <- ifelse(stats_results$p_value < 0.0001, 
+                                "< 0.0001", 
+                                sprintf("%.4f", as.numeric(stats_results$p_value)))
 # Print the results
 print(stats_results)
 
@@ -774,15 +775,15 @@ rm(ccc_results_list, stats, burned_subset)
 
 ## FIGURE: Relative height correspondence
 
-# Define forest state categories and color mapping
-forest_state_categories <- c("Intact", "SU", "PB1", "PB2", "PB3+", "SB1", "SB2", "SB3+")
+# Define Forest Class categories and color mapping
+forest_state_categories <- c("PU", "PB1", "PB2", "PB3+", "SU", "SB1", "SB2", "SB3+")
 forest_state_colors <- c(
   "All" = "midnightblue",
-  "Intact" = "#92c5de",
-  "SU" = "#0073e6", 
-  "PB1" = "pink",
-  "PB2" = "lightpink2",
-  "PB3+" ="palevioletred1",
+  "PU" = "#1F65CC",
+  "PB1" = "#4AA4DE", 
+  "PB2" = "#9ECAE1",
+  "PB3+" = "pink",
+  "SU" ="palevioletred1",
   "SB1" =  "firebrick1",
   "SB2" = "red3",
   "SB3+" = "red4"
@@ -795,7 +796,7 @@ allGEDI2AB_ALS_height_long <- allGEDI2AB_ALS %>%
   filter((ALS == "rhz25" & GEDI == "rh25") | 
            (ALS == "rhz50" & GEDI == "rh50") |
            (ALS == "rhz75" & GEDI == "rh75") |
-           (ALS == "rhz96" & GEDI == "rh96"))
+           (ALS == "rhz95" & GEDI == "rh95"))
 
 
 # Order the forest_state types for output
@@ -818,7 +819,7 @@ rh_correspondence <- allGEDI2AB_ALS_height_long %>%
   geom_text(data = correlations_height_ccc, aes(x = Inf, y = Inf, label = annotation), 
             hjust = 1.1, vjust = 2, size = 3, color = "black") +
   geom_abline(slope = 1, intercept = 0, color = "gray50", linetype = "dashed", size = 0.5) +
-  labs(x = "ALS Relative Height (m)", y = "GEDI Relative Height (m)", color = "Forest State") +
+  labs(x = "ALS Relative Height (m)", y = "GEDI Relative Height (m)", color = "Forest Class") +
   theme_fancy() +
   scale_colour_manual(
     values = forest_state_colors,
@@ -883,11 +884,11 @@ ccc_pair_results <- do.call(rbind, results_list)
 ccc_pair_results <- ccc_pair_results %>%
   mutate(Condition = case_when(
     Condition == "All" ~ "All",
-    Condition == "forest_state == 'Intact'" ~ "Intact",
-    Condition == "forest_state == 'SU'" ~ "SU",
+    Condition == "forest_state == 'PU'" ~ "PU",
     Condition == "forest_state == 'PB1'" ~ "PB1",
     Condition == "forest_state == 'PB2'" ~ "PB2",
     Condition == "forest_state == 'PB3+'" ~ "PB3+",
+    Condition == "forest_state == 'SU'" ~ "SU",
     Condition == "forest_state == 'SB1'" ~ "SB1",
     Condition == "forest_state == 'SB2'" ~ "SB2",
     Condition == "forest_state == 'SB3+'" ~ "SB3+",
@@ -922,13 +923,15 @@ max_lins_ccc <- ccc_results_data_filtered %>%
   group_by(Condition) %>%
   slice_max(order_by = Lins_CCC, n = 1)
 
+
+forest_state_categories <- c("PU", "PB1", "PB2", "PB3+", "SU", "SB1", "SB2", "SB3+")
 forest_state_colors <- c(
   "All" = "midnightblue",
-  "Intact" = "#92c5de",,
-  "SU" = "#0073e6", 
-  "PB1" = "pink",
-  "PB2" = "lightpink2",
-  "PB3+" ="palevioletred1",
+  "PU" = "#1F65CC",
+  "PB1" = "#4AA4DE", 
+  "PB2" = "#9ECAE1",
+  "PB3+" = "pink",
+  "SU" ="palevioletred1",
   "SB1" =  "firebrick1",
   "SB2" = "red3",
   "SB3+" = "red4"
@@ -976,7 +979,7 @@ allGEDI2AB_ALS <- allGEDI2AB_ALS %>%
 # Calculate Lin's CCC for relative height
 ccc_forest_state_height <- allGEDI2AB_ALS %>%
   group_by(forest_state) %>%
-  summarise(ccc_value = as.numeric(calculate_ccc(cur_data(), "rh96", "rhz96")), .groups = 'drop') %>%
+  summarise(ccc_value = as.numeric(calculate_ccc(cur_data(), "rh95", "rhz95")), .groups = 'drop') %>%
   mutate(annotation = paste0("CCC = ", round(ccc_value, 2)))
 
 # Canopy Cover Data
@@ -998,7 +1001,7 @@ ccc_forest_state_cover <- allGEDI2AB_ALS_cover_long %>%
 
 
 # Compute density for both datasets with normalized values
-allGEDI2AB_ALS$density <- get_density(allGEDI2AB_ALS$rhz96, allGEDI2AB_ALS$rh96)
+allGEDI2AB_ALS$density <- get_density(allGEDI2AB_ALS$rhz95, allGEDI2AB_ALS$rh95)
 allGEDI2AB_ALS_cover_long$density <- get_density(allGEDI2AB_ALS_cover_long$ALS_value, allGEDI2AB_ALS_cover_long$GEDI_value)
 
 # Find global min/max density across both datasets (after normalization)
@@ -1014,7 +1017,7 @@ shared_color_scale <- scale_color_viridis_c(
 
 # Relative height plot
 ccc_height_deg <- allGEDI2AB_ALS %>%
-  ggplot(aes(x = rhz96, y = rh96, color = density)) +
+  ggplot(aes(x = rhz95, y = rh95, color = density)) +
   geom_point(size = 0.7, alpha = 0.7) +  # Larger points, semi-transparent
   shared_color_scale +  
   geom_abline(slope = 1, intercept = 0, color = "gray70", linetype = "dashed", size = 0.7) +
@@ -1082,7 +1085,7 @@ rm(allGEDI2AB_ALS_height_long, allGEDI2AB_ALS_cover_long, ccc_results_list,
 # ------- GEDI Gradient (Aim 2) -------
 
 
-## FIGURE 3 - GEDI forest state data across Amazonia 
+## FIGURE 3 - GEDI Forest Class data across Amazonia 
 
 # Ordering of age within plots
 age_order <- c("<7", "7-15", "15-25", "25-40", "n/a")
@@ -1102,7 +1105,7 @@ allGEDI <- allGEDI %>%
   filter(agbd < 800)
  
 
-# Order the forest state types for output
+# Order the Forest Class types for output
 allGEDI2AB <- allGEDI2AB %>%
   mutate(forest_state = factor(forest_state, levels = forest_state_categories))
 
@@ -1113,16 +1116,16 @@ allGEDI <- allGEDI %>%
 # Violin plot for canopy height
 filtered_data1 <- allGEDI2AB %>%
   group_by(age_category, forest_state) %>%
-  filter(var(rh97, na.rm = TRUE) > 0)
+  filter(var(rh95, na.rm = TRUE) > 0)
 
 height_violin <- filtered_data1 %>%
-  ggplot(aes(x = age_category, y = rh97, color = forest_state, fill = forest_state)) +
+  ggplot(aes(x = age_category, y = rh95, color = forest_state, fill = forest_state)) +
   geom_violin(width = 0.9, position = position_dodge(width = 0.7), scale = "width", alpha = 0.7) +
   stat_summary(fun = mean, geom = "point", position = position_dodge(width = 0.7), 
                shape = 23, size = 1, color = "black", fill = "white", aes(group = forest_state)) +
   stat_summary(fun = mean, geom = "text", color = "black", position = position_dodge(width = 1), 
                aes(label = round(..y.., 1), group = forest_state), vjust = -1.5, size = 2.5) +
-  labs(y = "Canopy Height (m)", x = NULL, fill = "Forest State", color = "Forest State") + 
+  labs(y = "Canopy Height (m)", x = NULL, fill = "Forest Class", color = "Forest Class") + 
   theme_bw() +
   scale_colour_manual(values = forest_state_colors) +
   scale_fill_manual(values = forest_state_colors) +
@@ -1150,7 +1153,7 @@ cover_violin <- filtered_data2 %>%
                shape = 23, size = 1, color = "black", fill = "white", aes(group = forest_state)) +
   stat_summary(fun = mean, geom = "text", color = "black", position = position_dodge(width = 1), 
                aes(label = round(..y.., 1), group = forest_state), vjust = -1.5, size = 2.5) +
-  labs(y = "Canopy Cover", fill = "Forest State", color = "Forest State") +  
+  labs(y = "Canopy Cover", fill = "Forest Class", color = "Forest Class") +  
   theme_bw() +
   scale_colour_manual(values = forest_state_colors) +
   scale_fill_manual(values = forest_state_colors) +
@@ -1175,7 +1178,7 @@ agbd_violin <- filtered_data3 %>%
                shape = 23, size = 1, color = "black", fill = "white", aes(group = forest_state)) +
   stat_summary(fun = mean, geom = "text", color = "black", position = position_dodge(width = 1), 
                aes(label = round(..y.., 1), group = forest_state), vjust = -1.5, size = 2.5) +
-  labs(y = "AGBD (Mg/ha)", x = "Years Since Fire", fill = "Forest State", color = "Forest State") + 
+  labs(y = "AGBD (Mg/ha)", x = "Years Since Fire", fill = "Forest Class", color = "Forest Class") + 
   theme_bw() +
   scale_colour_manual(values = forest_state_colors) +
   scale_fill_manual(values = forest_state_colors) +
@@ -1240,13 +1243,13 @@ rm(filtered_data1, filtered_data2, filtered_data3, age_order, height_violin, cov
 
 # PCA for mixture of GEDI variables and height/ waveform summaries to assess forest condition
 
-# Keep the forest state variable separate before PCA
+# Keep the Forest Class variable separate before PCA
 forest_state_type <- allGEDI2AB$forest_state
 
 # Create PCA dataset, removing unnecessary columns for PCA
 allGEDI2ABPCA <- allGEDI2AB %>%
   dplyr::select(-starts_with("rh"), rh_min, Rh_slope, Rh_variance, Rh_intercept, rh_sd, rh_skew, rh_kurt, rh_mean,
-         rh_max, rh100, rh99, rh96, rh75, rh50, rh25, max_amp, W_variance, W_slope, W_intercept, pgap_theta,
+         rh_max, rh100, rh99, rh95, rh75, rh50, rh25, max_amp, W_variance, W_slope, W_intercept, pgap_theta,
          fhd_normal, pai, cover, num_detectedmodes, -beam, -year, -solar_elevation, -elev_highestreturn,
          -elev_lowestmode,-sensitivity, -shot_number, -degrade_flag, -modis_treecover, -landsat_treecover,
          -ALS_CRS, -ALS_year,-l2b_quality_flag, -omega, -TSF, -forest_state, -age_category,
@@ -1260,44 +1263,18 @@ allGEDI2ABPCA <- allGEDI2ABPCA %>%
 
 allGEDI2ABPCA <- allGEDI2ABPCA %>%
   dplyr::select(cover, fhd_normal, pgap_theta, -W_intercept, Rh_slope, Rh_variance,
-                Rh_intercept, -rh_skew, rh_mean, rh96, rh75)
+                Rh_intercept, -rh_skew, rh_mean, rh95, rh75)
 
 # Final removal of variables after correlation analysis/ reflection of explained variance improvements
 
 allGEDI2ABPCA <- allGEDI2ABPCA %>%
   dplyr::select(cover, fhd_normal, pgap_theta, Rh_slope, -Rh_variance,
-                -Rh_intercept, -rh_mean, rh96, rh75)
-
-
-
-
-
-
-# Testing
-
-# allGEDI2ABPCA <- allGEDI2ABPCA %>%
-#   dplyr::select(-Rh_intercept, -W_intercept, -Rh_variance, -W_variance, -rh_kurt,
-#          -rh_min, -W_slope, -num_detectedmodes, -max_amp, -rh_skew, -rh_sd)
-# 
-# 
-# allGEDI2ABPCA <- allGEDI2ABPCA %>%
-#   dplyr::select(-rh25, -rh100, -pai, -rh_max, -rh99, -rh_mean)
-# 
-
-
-
-
-
-
-
-
-
-
+                -Rh_intercept, -rh_mean, rh95, rh75)
 
 
 
 # # Remove unnecessary columns for PCA, but keep forest_state out for later use (De Conta run)
-# allGEDI2ABPCA <- allGEDI%>%
+# allGEDI2ABPCA <- allGEDI %>%
 #   dplyr::select(rh98, agbd, fhd_normal, cover, pai)
 # 
 
@@ -1382,23 +1359,26 @@ components$PC2 <- -components$PC2
 # Plot 1: Full Biplot with All Loadings
 scale <- 5 # Adjust arrow length scale
 biplot_full <- ggplot(data = components, aes(x = PC1, y = PC2)) +
-  geom_point(aes(color = forest_state), size = 0.7, shape = 19, alpha = 0.8) +
+  geom_point(aes(color = forest_state, alpha = ifelse(forest_state == "PU", 0.4, 1)), 
+             size = 1.2, shape = 16) +  # Shape 16 removes outlines, size increases visibility
+  scale_alpha_identity() +  # Ensures manual alpha settings are applied
+  scale_color_manual(values = forest_state_colors, guide = guide_legend(override.aes = list(alpha = 1))) + 
   geom_segment(data = as.data.frame(pca_result$rotation), 
                aes(x = 0, y = 0, xend = PC1 * scale, yend = PC2 * scale), 
                arrow = arrow(length = unit(0.3, "cm"), type = "open", angle = 25), 
                size = 0.8, color = "darkblue") +
   geom_text_repel(data = as.data.frame(pca_result$rotation), 
                   aes(x = PC1 * scale, y = PC2 * scale, label = rownames(pca_result$rotation)), 
-                  size = 3, color = "black", max.overlaps = 5, 
-                  box.padding = 0.35, point.padding = 0.5) +
-  scale_color_manual(values = forest_state_colors) +
-  labs(title = "Biplot - PCA", x = "PC1", y = "PC2", color = "Forest State") +
+                  size = 3, fontface = "bold", color = "black", max.overlaps = 5, 
+                  box.padding = 0.35, point.padding = 0.5) +  
+  labs(title = "Biplot - PCA", x = "PC1", y = "PC2", color = "Forest Class") +
   theme_minimal() +
   theme_fancy() +
   theme(
-    legend.position = c(0.95, 0.05),  # Adjusts the position (x, y) relative to the plot
-    legend.justification = c("center", "bottom")  # Anchors the legend to its new position
+    legend.position = c(0.95, 0.05),
+    legend.justification = c("center", "bottom")
   )
+
 
 # Display the full biplot
 print(biplot_full)
@@ -1411,31 +1391,50 @@ x_limits <- c(-6, 6)
 # Add the forest_state type from forest_state_type to pca_data
 pca_data <- as.data.frame(pca_result$x)
 pca_data$forest_state <- forest_state_type
-pca_data$forest_state <- factor(pca_data$forest_state, levels = c("SB3+", "SB2","SB1", "PB3+", "PB2", 
-                                                                  "PB1", "SU", "Intact"))
+pca_data$forest_state <- factor(pca_data$forest_state, levels = c("SB3+", "SB2","SB1", "SU", "PB3+", "PB2", 
+                                                                  "PB1", "PU"))
 
 
-# Create PC1 plot with facets
+# Compute sample sizes for each forest_state
+forest_state_summaries_2AB <- allGEDI2AB %>%
+  count(forest_state)
+
+# Create a named vector for facet labels
+facet_labels <- setNames(
+  paste0(forest_state_summaries_2AB$forest_state, "\n(n=", forest_state_summaries_2AB$n, ")"),  
+  forest_state_summaries_2AB$forest_state
+)
+
+# Create PC1 plot
 fig_pc1 <- ggplot(pca_data, aes(x = PC1, fill = forest_state)) +  
-  geom_histogram(binwidth = 0.5, color = "white", size = 0.1, show.legend = FALSE) +  # Thin white outline on bins
+  geom_histogram(binwidth = 0.5, color = "white", size = 0.1, show.legend = FALSE) +  
   scale_fill_manual(values = forest_state_colors) +
   labs(x = "PC1 Values", y = "Frequency") +
   xlim(x_limits) +
-  facet_wrap(~ forest_state, nrow = 1, scales = "free_y") +  # One row with independent y-scales
+  facet_wrap(~ forest_state, nrow = 1, scales = "free_y", 
+             labeller = labeller(forest_state = facet_labels)) +  
   theme_minimal() +  
   theme_fancy() &
-  labs(color = "Condition")  
+  theme(
+    strip.text = element_text(size = 8, face = "bold"),  # Keep text readable
+    axis.text.x = element_text(size = 8)
+  )
 
-# Create PC2 plot with facets
+# Create PC2 plot
 fig_pc2 <- ggplot(pca_data, aes(x = PC2, fill = forest_state)) +  
-  geom_histogram(binwidth = 0.5, color = "white", size = 0.1, show.legend = FALSE) +  # Thin white outline on bins
+  geom_histogram(binwidth = 0.5, color = "white", size = 0.1, show.legend = FALSE) +  
   scale_fill_manual(values = forest_state_colors) +
   labs(x = "PC2 Values", y = "Frequency") +
   xlim(x_limits) +
-  facet_wrap(~ forest_state, nrow = 1, scales = "free_y") +  # One row with independent y-scales
+  facet_wrap(~ forest_state, nrow = 1, scales = "free_y", 
+             labeller = labeller(forest_state = facet_labels)) +  
   theme_minimal() +   
   theme_fancy() &
-  labs(color = "Forest State")  
+  theme(
+    strip.text = element_text(size = 8, face = "bold"),  
+    axis.text.x = element_text(size = 8)
+  )
+
 
 
 # Combine both PC1 and PC2 panels
@@ -1443,19 +1442,18 @@ fig_pcs <- (fig_pc1) / (fig_pc2)
 fig_pcs
 
 # Figure with both panels
-
 figure4 <- (biplot_full) / (fig_pcs) +
   plot_annotation(tag_levels = 'A') &
   theme(
-    plot.tag = element_text(size = 8, face= "bold"),
-    plot.tag.position = c(0, 1)  # Position the tags, (0, 1) is top-left
+    plot.tag = element_text(size = 8, face = "bold"),
+    plot.tag.position = c(0, 1)
   )
 
 print(figure4)
 
 ggsave(figure4,
        filename = "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Publication_outputs/PCA.png",
-       width = 18, height = 20, units = "cm"
+       width = 17, height = 20, units = "cm"
 )
 
 # 
@@ -1465,7 +1463,7 @@ ggsave(figure4,
 #   geom_density(size = 1) +  # Set line size for better visibility
 #   labs(x = "PC1 Values", y = "Density") +
 #   scale_color_manual(values = c(
-#     "Intact" = "#92c5de",
+#     "PU" = "#92c5de",
 #     "Logged" = "#0073e6",
 #     "Burned 1" = "pink",
 #     "Burned 2" = "palevioletred1",
@@ -1501,56 +1499,58 @@ allGEDI2ABPCA <- allGEDI2ABPCA |>
 
 options(pillar.width = 200)
 
-# Define color palette for forest state types
+# Define color palette for Forest Class types
 forest_state_colors <- c(
-  "Intact" = "#92c5de",
-  "SU" = "#0073e6",
-  "PB1" = "pink",
-  "PB2" = "lightpink2",
-  "PB3+" = "palevioletred1",
-  "SB1" = "firebrick1",
+  "PU" = "#1F65CC",
+  "PB1" = "#4AA4DE", 
+  "PB2" = "#9ECAE1",
+  "PB3+" = "pink",
+  "SU" ="palevioletred1",
+  "SB1" =  "firebrick1",
   "SB2" = "red3",
   "SB3+" = "red4"
 )
 
-# Set the factor levels
+# Set the factor/ scale levels
+rescale_2 <- function(x, to = c(0, 1)) {
+  scales::rescale(x, to = to)
+}
 gpca <- pca_data |>
   dplyr::mutate(
     forest_state = forcats::fct_relevel(
       forest_state,
-      "Intact", "SU", "PB1", "PB2", "PB3+", "SB1", "SB2", "SB3+"
+      "PU", "PB1", "PB2", "PB3+", "SU", "SB1", "SB2", "SB3+"
     ),
-    pc_sum = rescale(PC1) + rescale(PC2),
-    pc_ratio = rescale(log(rescale(PC1) / rescale(PC2))),
+    pc_sum = rescale_2(PC1) + rescale_2(PC2),
+    pc_ratio = rescale_2(log(rescale_2(PC1) / rescale_2(PC2))),
     pc_ratio = dplyr::case_when(!is.finite(pc_ratio) ~ NA_real_, TRUE ~ pc_ratio),
-    pc1_x_pc2 = rescale(PC1) * rescale(PC2),
-    pc1 = rescale(PC1),
+    pc1_x_pc2 = rescale_2(PC1) * rescale_2(PC2),
+    pc1 = rescale_2(PC1),
+    pc2 = rescale_2(PC2),
     rowid = dplyr::row_number()
   ) |>
   dplyr::left_join(st_drop_geometry(allGEDI2ABPCA), by = "rowid")
-
 # Multi-performance metrics
 mod_perf_tab <- list(
   as.formula(forest_state ~ PC1 + PC2),
   as.formula(forest_state ~ PC1 * PC2),
   as.formula(forest_state ~ PC1),
+  as.formula(forest_state ~ PC2),
   as.formula(forest_state ~ pc_sum),
   as.formula(forest_state ~ pc_ratio),
-  as.formula(forest_state ~ rh96)  # Use rh96 (relative height at 96%) instead of rh99 for consistency
+  as.formula(forest_state ~ rh95) # Use rh95 (relative height at 95%) instead of rh99 for consistency
 ) |>
   purrr::map(~ nnet::multinom(.x, data = gpca)) |>
   purrr::map(performance::model_performance) |>
   purrr::set_names(
-    c("PC1 + PC2", "PC1 * PC2", "PC1", "PC1_add_PC2", "PC_ratio", "RH96")
+    c("PC1 + PC2", "PC1 * PC2", "PC1", "PC2", "PC1_add_PC2", "PC_ratio", "rh95")
   ) |>
   purrr::imap(~ dplyr::mutate(as_tibble(.x), model = .y)) |>
   purrr::list_rbind() |>
   dplyr::relocate(model) |>
   dplyr::mutate(dplyr::across(where(is.numeric), ~ round(., 3)))
-
 # Display model performance metrics
 kableExtra::kable(mod_perf_tab, rownames = FALSE)
-
 # Inspect the effects of the PC ratio model
 pc_ratio1 <- nnet::multinom(forest_state ~ pc_ratio, data = gpca)
 summary(pc_ratio1)
@@ -1559,17 +1559,20 @@ gge <- ggeffects::ggemmeans(pc_ratio1, terms = "pc_ratio [all]")
 print(gge)
 plot(gge)
 
-# Stack plots to compare
-plot_model_sup <- (fit_nplot_mnlr(pc_ratio) | fit_nplot_mnlr(pc_sum)) /
-  (fit_nplot_mnlr(pc1) | fit_nplot_mnlr(rh96)) +  # Adjusted to use rh96
-  plot_layout(guides = "collect")
+fit_nplot_mnlr(pc_ratio)
+
+
+# Stack plots in a 2x2 grid with pc_ratio spanning the full width below
+plot_model_sup <- ((fit_nplot_mnlr(pc1) | fit_nplot_mnlr(pc2)) /
+                     (fit_nplot_mnlr(pc_sum) | fit_nplot_mnlr(rh95)) /
+                     (fit_nplot_mnlr(pc_ratio) | plot_spacer())) +
+  plot_layout(guides = "collect", heights = c(1, 1, 1))
 
 plot_model_sup
 
 # Individual PC ratio model plot
 plot_model <- fit_nplot_mnlr(pc_ratio) +
   labs(x = "PC1/PC2 ratio (PCR)")
-
 plot_model
 
 # Save the plot
@@ -1583,7 +1586,7 @@ ggsave(
 ggsave(
   plot_model_sup,
   filename = "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Publication_outputs/model_supplementary.png",
-  width = 16, height = 12, units = "cm"
+  width = 16, height = 18, units = "cm"
 )
 
 
@@ -1669,7 +1672,7 @@ rand_amp <- ggplot(combined_waveform, aes(x = relative_height, y = amplitude, co
     axis.text.y = element_blank(),   # Suppress y-axis text
     axis.ticks.y = element_blank()   # Suppress y-axis ticks
   ) +
-  labs(color = "Condition")
+  labs(color = "Forest Class")
 
 # Combine the two plots side by side
 figure6 <- (avg_rh | rand_amp) +
@@ -1742,13 +1745,9 @@ ggsave(correlation,
 forest_state_type <- allGEDI$forest_state
 
 # Remove unnecessary columns for PCA, but keep forest_state out for later use
-allGEDIBPCA <- allGEDI%>%
-  dplyr::select(-forest_state, -solar_elevation, -l2b_quality_flag, -pgap_theta_error,
-         -shot_number, -elev_highestreturn, -elev_lowestmode, -sensitivity, -geometry, 
-         -age_category, -beam, -l4_quality_flag, -age_category2, -ALS_CRS, -matches("^rhz"),
-         -agbd_se, -agbd_pi_lower, -omega, -starts_with("rh"), -modis_treecover, -pgap_theta,
-         -agbd_pi_upper, -secondary_age, -burn_frequency, -starts_with("rx"), -num_detectedmodes,
-         -secondary_age.1, -validation.1, -burn_frequency.1, agbd, cover, fhd_normal, rh98, pai)
+allGEDIBPCA <- allGEDI %>%
+  dplyr::select(agbd, cover, fhd_normal, rh98, pai)
+
 
 # Rename to slot into code
 allGEDI2ABPCA <- allGEDIBPCA
@@ -1758,9 +1757,9 @@ allGEDI2ABPCA <- allGEDIBPCA
 
 
 
-## (Figure S1) Distribution of the data plots for supplementary per degradtion type
+## (Table S4) Impact of sensitivity filtering GEDI
 
-# Ensure the original data is intact by creating separate filtered datasets
+# Ensure the original data is PU by creating separate filtered datasets
 allGEDI2ABfilter1 <- allGEDI2AB %>%
   filter(sensitivity > 0.98)
 
@@ -1781,7 +1780,7 @@ forest_state_combined <- bind_rows(
 forest_state_counts_combined <- forest_state_combined %>%
   group_by(Filter, forest_state) %>%
   summarise(Sample_Count = n(), .groups = "drop") %>%
-  mutate(forest_state = factor(forest_state, levels = c("Intact", "Logged", "Burned 1", "Burned 2", "Burned 3", "Burned 4+")))
+  mutate(forest_state = factor(forest_state, levels = c("PU", "Logged", "Burned 1", "Burned 2", "Burned 3", "Burned 4+")))
 
 # Check the output to ensure counts are correct
 print(forest_state_counts_combined)
@@ -1832,7 +1831,7 @@ allGEDI2AB_ALSfilter2 <- allGEDI2AB_ALS %>%
 
 
 # Set rh and rhz columns for calculation (for example, rh25 and rhz25)
-# Run repeatedly along the GEDI profile e.g. rh25, rh50, rh75, rh96
+# Run repeatedly along the GEDI profile e.g. rh25, rh50, rh75, rh95
 rh_col <- "rh25"
 rhz_col <- "rhz25"
 
@@ -1841,33 +1840,35 @@ ccc_results_list <- list()
 
 # Height Calculations
 add_ccc_result("All", calculate_ccc(allGEDI2AB_ALSfilter1, rh_col, rhz_col), "Height")
-add_ccc_result("Intact", calculate_ccc(allGEDI2AB_ALSfilter1, rh_col, rhz_col, "forest_state == 'Intact'"), "Height")
-add_ccc_result("Logged", calculate_ccc(allGEDI2AB_ALSfilter1, rh_col, rhz_col, "forest_state == 'Logged'"), "Height")
-add_ccc_result("Burned 1-10", calculate_ccc(allGEDI2AB_ALSfilter1, rh_col, rhz_col, "burn_frequency %in% 1:10"), "Height")
-add_ccc_result("Burned 1", calculate_ccc(allGEDI2AB_ALSfilter1, rh_col, rhz_col, "burn_frequency == 1"), "Height")
-add_ccc_result("Burned 2", calculate_ccc(allGEDI2AB_ALSfilter1, rh_col, rhz_col, "burn_frequency == 2"), "Height")
-add_ccc_result("Burned 3", calculate_ccc(allGEDI2AB_ALSfilter1, rh_col, rhz_col, "burn_frequency == 3"), "Height")
-add_ccc_result("Burned 4-6", calculate_ccc(allGEDI2AB_ALSfilter1, rh_col, rhz_col, "burn_frequency %in% 4:6"), "Height")
+add_ccc_result("PU", calculate_ccc(allGEDI2AB_ALSfilter1, rh_col, rhz_col, "forest_state == 'PU'"), "Height")
+add_ccc_result("SU", calculate_ccc(allGEDI2AB_ALSfilter1, rh_col, rhz_col, "forest_state == 'SU'"), "Height")
+add_ccc_result("PB1", calculate_ccc(allGEDI2AB_ALSfilter1, rh_col, rhz_col, "forest_state == 'PB1'"), "Height")
+add_ccc_result("PB2", calculate_ccc(allGEDI2AB_ALSfilter1, rh_col, rhz_col, "forest_state == 'PB2'"), "Height")
+add_ccc_result("PB3+", calculate_ccc(allGEDI2AB_ALSfilter1, rh_col, rhz_col, "forest_state == 'PB3+'"), "Height")
+add_ccc_result("SB1", calculate_ccc(allGEDI2AB_ALSfilter1, rh_col, rhz_col, "forest_state == 'SB1'"), "Height")
+add_ccc_result("SB2", calculate_ccc(allGEDI2AB_ALSfilter1, rh_col, rhz_col, "forest_state == 'SB2'"), "Height")
+add_ccc_result("SB3+", calculate_ccc(allGEDI2AB_ALSfilter1, rh_col, rhz_col, "forest_state == 'SB3+'"), "Height")
 
 # Canopy Cover Calculations (fixed, not based upon rh value)
 add_ccc_result("All", calculate_ccc_c(allGEDI2AB_ALSfilter1, "cover", "cancov"), "Canopy Cover")
-add_ccc_result("Intact", calculate_ccc_c(allGEDI2AB_ALSfilter1, "cover", "cancov", "forest_state == 'Intact'"), "Canopy Cover")
-add_ccc_result("Logged", calculate_ccc_c(allGEDI2AB_ALSfilter1, "cover", "cancov", "forest_state == 'Logged'"), "Canopy Cover")
-add_ccc_result("Burned 1-10", calculate_ccc_c(allGEDI2AB_ALSfilter1, "cover", "cancov", "burn_frequency %in% 1:10"), "Canopy Cover")
-add_ccc_result("Burned 1", calculate_ccc_c(allGEDI2AB_ALSfilter1, "cover", "cancov", "burn_frequency == 1"), "Canopy Cover")
-add_ccc_result("Burned 2", calculate_ccc_c(allGEDI2AB_ALSfilter1, "cover", "cancov", "burn_frequency == 2"), "Canopy Cover")
-add_ccc_result("Burned 3", calculate_ccc_c(allGEDI2AB_ALSfilter1, "cover", "cancov", "burn_frequency == 3"), "Canopy Cover")
-add_ccc_result("Burned 4-6", calculate_ccc_c(allGEDI2AB_ALSfilter1, "cover", "cancov", "burn_frequency %in% 4:6"), "Canopy Cover")
+add_ccc_result("PU", calculate_ccc_c(allGEDI2AB_ALSfilter1, "cover", "cancov", "forest_state == 'PU'"), "Canopy Cover")
+add_ccc_result("SU", calculate_ccc_c(allGEDI2AB_ALSfilter1, "cover", "cancov", "forest_state == 'SU'"), "Canopy Cover")
+add_ccc_result("PB1", calculate_ccc_c(allGEDI2AB_ALSfilter1, "cover", "cancov", "forest_state == 'PB1'"), "Canopy Cover")
+add_ccc_result("PB2", calculate_ccc_c(allGEDI2AB_ALSfilter1, "cover", "cancov", "forest_state == 'PB2'"), "Canopy Cover")
+add_ccc_result("PB3+", calculate_ccc_c(allGEDI2AB_ALSfilter1, "cover", "cancov", "forest_state == 'PB3+'"), "Canopy Cover")
+add_ccc_result("SB1", calculate_ccc_c(allGEDI2AB_ALSfilter1, "cover", "cancov", "forest_state == 'SB1'"), "Canopy Cover")
+add_ccc_result("SB2", calculate_ccc_c(allGEDI2AB_ALSfilter1, "cover", "cancov", "forest_state == 'SB2'"), "Canopy Cover")
+add_ccc_result("SB3+", calculate_ccc_c(allGEDI2AB_ALSfilter1, "cover", "cancov", "forest_state == 'SB3+'"), "Canopy Cover")
 
 # Combine all results into a single dataframe
-ccc_results <- do.call(rbind, ccc_results_list)
+ccc_results_filter1 <- do.call(rbind, ccc_results_list)
 
 # Print the results as a table
-print(ccc_results)
+print(ccc_results_filter1)
 
 
 # Set rh and rhz columns for calculation (for example, rh25 and rhz25)
-# Run repeatedly along the GEDI profile e.g. rh25, rh50, rh75, rh96
+# Run repeatedly along the GEDI profile e.g. rh25, rh50, rh75, rh95
 rh_col <- "rh25"
 rhz_col <- "rhz25"
 
@@ -1876,29 +1877,31 @@ ccc_results_list <- list()
 
 # Height Calculations
 add_ccc_result("All", calculate_ccc(allGEDI2AB_ALSfilter2, rh_col, rhz_col), "Height")
-add_ccc_result("Intact", calculate_ccc(allGEDI2AB_ALSfilter2, rh_col, rhz_col, "forest_state == 'Intact'"), "Height")
-add_ccc_result("Logged", calculate_ccc(allGEDI2AB_ALSfilter2, rh_col, rhz_col, "forest_state == 'Logged'"), "Height")
-add_ccc_result("Burned 1-10", calculate_ccc(allGEDI2AB_ALSfilter2, rh_col, rhz_col, "burn_frequency %in% 1:10"), "Height")
-add_ccc_result("Burned 1", calculate_ccc(allGEDI2AB_ALSfilter2, rh_col, rhz_col, "burn_frequency == 1"), "Height")
-add_ccc_result("Burned 2", calculate_ccc(allGEDI2AB_ALSfilter2, rh_col, rhz_col, "burn_frequency == 2"), "Height")
-add_ccc_result("Burned 3", calculate_ccc(allGEDI2AB_ALSfilter2, rh_col, rhz_col, "burn_frequency == 3"), "Height")
-add_ccc_result("Burned 4-6", calculate_ccc(allGEDI2AB_ALSfilter2, rh_col, rhz_col, "burn_frequency %in% 4:6"), "Height")
+add_ccc_result("PU", calculate_ccc(allGEDI2AB_ALSfilter2, rh_col, rhz_col, "forest_state == 'PU'"), "Height")
+add_ccc_result("SU", calculate_ccc(allGEDI2AB_ALSfilter2, rh_col, rhz_col, "forest_state == 'SU'"), "Height")
+add_ccc_result("PB1", calculate_ccc(allGEDI2AB_ALSfilter2, rh_col, rhz_col, "forest_state == 'PB1'"), "Height")
+add_ccc_result("PB2", calculate_ccc(allGEDI2AB_ALSfilter2, rh_col, rhz_col, "forest_state == 'PB2'"), "Height")
+add_ccc_result("PB3+", calculate_ccc(allGEDI2AB_ALSfilter2, rh_col, rhz_col, "forest_state == 'PB3+'"), "Height")
+add_ccc_result("SB1", calculate_ccc(allGEDI2AB_ALSfilter2, rh_col, rhz_col, "forest_state == 'SB1'"), "Height")
+add_ccc_result("SB2", calculate_ccc(allGEDI2AB_ALSfilter2, rh_col, rhz_col, "forest_state == 'SB2'"), "Height")
+add_ccc_result("SB3+", calculate_ccc(allGEDI2AB_ALSfilter2, rh_col, rhz_col, "forest_state == 'SB3+'"), "Height")
 
 # Canopy Cover Calculations (fixed, not based upon rh value)
 add_ccc_result("All", calculate_ccc_c(allGEDI2AB_ALSfilter2, "cover", "cancov"), "Canopy Cover")
-add_ccc_result("Intact", calculate_ccc_c(allGEDI2AB_ALSfilter2, "cover", "cancov", "forest_state == 'Intact'"), "Canopy Cover")
-add_ccc_result("Logged", calculate_ccc_c(allGEDI2AB_ALSfilter2, "cover", "cancov", "forest_state == 'Logged'"), "Canopy Cover")
-add_ccc_result("Burned 1-10", calculate_ccc_c(allGEDI2AB_ALSfilter2, "cover", "cancov", "burn_frequency %in% 1:10"), "Canopy Cover")
-add_ccc_result("Burned 1", calculate_ccc_c(allGEDI2AB_ALSfilter2, "cover", "cancov", "burn_frequency == 1"), "Canopy Cover")
-add_ccc_result("Burned 2", calculate_ccc_c(allGEDI2AB_ALSfilter2, "cover", "cancov", "burn_frequency == 2"), "Canopy Cover")
-add_ccc_result("Burned 3", calculate_ccc_c(allGEDI2AB_ALSfilter2, "cover", "cancov", "burn_frequency == 3"), "Canopy Cover")
-add_ccc_result("Burned 4-6", calculate_ccc_c(allGEDI2AB_ALSfilter2, "cover", "cancov", "burn_frequency %in% 4:6"), "Canopy Cover")
+add_ccc_result("PU", calculate_ccc_c(allGEDI2AB_ALSfilter2, "cover", "cancov", "forest_state == 'PU'"), "Canopy Cover")
+add_ccc_result("SU", calculate_ccc_c(allGEDI2AB_ALSfilter2, "cover", "cancov", "forest_state == 'SU'"), "Canopy Cover")
+add_ccc_result("PB1", calculate_ccc_c(allGEDI2AB_ALSfilter2, "cover", "cancov", "forest_state == 'PB1'"), "Canopy Cover")
+add_ccc_result("PB2", calculate_ccc_c(allGEDI2AB_ALSfilter2, "cover", "cancov", "forest_state == 'PB2'"), "Canopy Cover")
+add_ccc_result("PB3+", calculate_ccc_c(allGEDI2AB_ALSfilter2, "cover", "cancov", "forest_state == 'PB3+'"), "Canopy Cover")
+add_ccc_result("SB1", calculate_ccc_c(allGEDI2AB_ALSfilter2, "cover", "cancov", "forest_state == 'SB1'"), "Canopy Cover")
+add_ccc_result("SB2", calculate_ccc_c(allGEDI2AB_ALSfilter2, "cover", "cancov", "forest_state == 'SB2'"), "Canopy Cover")
+add_ccc_result("SB3+", calculate_ccc_c(allGEDI2AB_ALSfilter2, "cover", "cancov", "forest_state == 'SB3+'"), "Canopy Cover")
 
 # Combine all results into a single dataframe
-ccc_results <- do.call(rbind, ccc_results_list)
+ccc_results_filter2 <- do.call(rbind, ccc_results_list)
 
 # Print the results as a table
-print(ccc_results)
+print(ccc_results_filter2)
 
 
 
@@ -1907,22 +1910,26 @@ print(ccc_results)
 
 
 
-## (Figure S3) Original PCA graph with 27 loadings
+## (Figure S3) Original PCA graph with 25 loadings
 
 # Plot 1: Full Biplot with All Loadings
+
+# Plot 1: Full Biplot with All Loadings
+
+# Manually format labels to ensure n= is below the Forest Class
+facet_labels <- setNames(
+  paste0(forest_state_summaries_2AB$forest_state, "\n(n=", forest_state_summaries_2AB$n, ")"),  
+  forest_state_summaries_2AB$forest_state
+)
 
 # Ensure no missing values in PCA Data & Set Legend & Panel Orders Separately
 pca_data <- as.data.frame(pca_result$x) %>%
   mutate(
-    # Panel Order (PC1 & PC2 Facets) SB3+ → Intact
-    forest_state = factor(forest_state_type, levels = c("SB3+", "SB2", "SB1", "PB3+", "PB2", "PB1", "SU", "Intact")),
-    
-    # Legend Order (Biplot) Intact → SB3+
-    forest_state_legend = factor(forest_state_type, levels = c("Intact", "SU", "PB1", "PB2", "PB3+", "SB1", "SB2", "SB3+"))
+    forest_state = factor(forest_state_type, levels = c("SB3+", "SB2", "SB1", "SU", "PB3+", "PB2", "PB1", "PU")),
+    forest_state_legend = factor(forest_state_type, levels = c("PU", "PB1", "PB2", "PB3+", "SU", "SB1", "SB2", "SB3+"))
   ) %>%
   drop_na(PC1, PC2)
 
-# Reverse PC2 for visual consistency
 # Flip PC1 and PC2 for consistency
 pca_data$PC1 <- -pca_data$PC1
 pca_data$PC2 <- -pca_data$PC2
@@ -1934,17 +1941,19 @@ pca_rotation$PC2 <- -pca_rotation$PC2
 
 # Use the defined forest_state_colors
 biplot_full <- ggplot(data = pca_data, aes(x = PC1, y = PC2, color = forest_state_legend)) +
-  geom_point(size = 0.7, shape = 19, alpha = 0.8) +
+  geom_point(aes(alpha = ifelse(forest_state_legend == "PU", 0.4, 1)), 
+             size = 1.2, shape = 16) +  # Shape 16 removes outlines
+  scale_alpha_identity() +  # Ensures alpha values are correctly applied
+  scale_color_manual(values = forest_state_colors, guide = guide_legend(override.aes = list(alpha = 1))) + 
   geom_segment(data = pca_rotation,  
                aes(x = 0, y = 0, xend = PC1 * 24, yend = PC2 * 24), 
                arrow = arrow(length = unit(0.1, "cm"), type = "open", angle = 25), 
                size = 0.8, color = "darkblue") +
   geom_text_repel(data = pca_rotation, 
                   aes(x = PC1 * 24, y = PC2 * 24, label = rownames(pca_rotation)), 
-                  size = 2.5, color = "black", max.overlaps = 50,  
-                  box.padding = 0.35, point.padding = 0.5) +
-  scale_color_manual(values = forest_state_colors) +
-  labs(title = "Biplot - PCA", x = "PC1", y = "PC2", color = "Forest State") +
+                  size = 2.5, fontface = "bold", color = "black", max.overlaps = 50,  
+                  box.padding = 0.35, point.padding = 0.5) +  
+  labs(title = "Biplot - PCA", x = "PC1", y = "PC2", color = "Forest Class") +
   theme_minimal() +
   theme_fancy() +
   coord_cartesian(xlim = c(-10, 10), ylim = c(-10, 10)) +
@@ -1953,33 +1962,35 @@ biplot_full <- ggplot(data = pca_data, aes(x = PC1, y = PC2, color = forest_stat
     legend.justification = c("center", "bottom")
   )
 
-
-# # Fix Histogram Plot Data (Remove NAs)
-# filtered_pca_data <- pca_data %>%
-#   filter(!is.na(PC1) & !is.na(PC2))
-
 # PC1 Histogram
 fig_pc1 <- ggplot(pca_data, aes(x = PC1, fill = forest_state)) +  
   geom_histogram(binwidth = 0.5, color = "white", size = 0.1, show.legend = FALSE) +
   scale_fill_manual(values = forest_state_colors) +
   labs(x = "PC1 Values", y = "Frequency") +
-  xlim(-6, 6) +
-  facet_wrap(~ forest_state, nrow = 1, scales = "free_y") +
+  xlim(x_limits) +
+  facet_wrap(~ forest_state, nrow = 1, scales = "free_y", 
+             labeller = labeller(forest_state = facet_labels)) +  
   theme_minimal() +
-  theme_fancy() +
-  theme(legend.position = "none")
-
+  theme_fancy() &
+  theme(
+    strip.text = element_text(size = 8, face = "bold"),  # Bolder facet labels
+    axis.text.x = element_text(size = 8)
+  )
 
 # PC2 Histogram
 fig_pc2 <- ggplot(pca_data, aes(x = PC2, fill = forest_state)) +  
   geom_histogram(binwidth = 0.5, color = "white", size = 0.1, show.legend = FALSE) +
   scale_fill_manual(values = forest_state_colors) +
   labs(x = "PC2 Values", y = "Frequency") +
-  xlim(-6, 6) +
-  facet_wrap(~ forest_state, nrow = 1, scales = "free_y") +
-  theme_minimal() +
-  theme_fancy() +
-  theme(legend.position = "none")
+  xlim(x_limits) +
+  facet_wrap(~ forest_state, nrow = 1, scales = "free_y", 
+             labeller = labeller(forest_state = facet_labels)) +  
+  theme_minimal() +   
+  theme_fancy() &
+  theme(
+    strip.text = element_text(size = 8, face = "bold"),  
+    axis.text.x = element_text(size = 8)
+  )
 
 # Combine PC1 & PC2 Histograms
 fig_pcs <- (fig_pc1 / fig_pc2)
@@ -1988,16 +1999,15 @@ fig_pcs <- (fig_pc1 / fig_pc2)
 figure4 <- (biplot_full / fig_pcs) +
   plot_annotation(tag_levels = 'A') &
   theme(
-    plot.tag = element_text(size = 8, face= "bold"),
+    plot.tag = element_text(size = 8, face = "bold"),
     plot.tag.position = c(0, 1)
   )
 
 print(figure4)
 
-
 ggsave(figure4,
-       filename = "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Publication_outputs/PCA_27loadings.png",
-       width = 18, height = 20, units = "cm"
+       filename = "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Publication_outputs/PCA_25loadings.png",
+       width = 17, height = 20, units = "cm"
 )
 
 
