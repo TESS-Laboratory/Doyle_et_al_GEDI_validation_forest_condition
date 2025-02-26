@@ -6,15 +6,15 @@ This repository contains R Markdown and a workflow script for downloading, pre-p
 
 **Contributors:** Emily L. Doyle, Hugh A. Graham, Chris A. Boulton, Timothy M. Lenton, Ted R. Feldpausch, Andrew M. Cunliffe
 
-Publication:
+Publication:  (in review at Environmental Research Letters)
 
 Repository: DOI: 10.5281/zenodo.14103328
 
-**To evaluate the use of GEDI data to inform forest condition along a gradient of forest degradation, this study aimed to:**
+**To advance the use of GEDI data to quantify forest state along a gradient of forest disturbance, this study aimed to:**
 
 (A) Compare the relative accuracy of estimated height profiles and canopy cover derived from spaceborne lidar against comparable metrics derived from airborne lidar (ALS), across various forest conditions.
 
-(B) Evaluate GEDI forest structure variation along a gradient of forest condition.
+(B) Evaluate GEDI forest structure variation along a gradient of forest state.
 
 (C) Investigate the potential of principal component analysis to derive a continuous descriptor of forest condition that characterises the forest degradation continuum, using GEDI data.
 
