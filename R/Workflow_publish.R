@@ -943,7 +943,7 @@ plot_pairwise <- ccc_results_data_filtered %>%
   geom_point(size = 1) +
   geom_line(aes(group = Condition), size = 0.5) +
   geom_point(data = max_lins_ccc, aes(x = Pair, y = Lins_CCC), size = 4, shape = 18, alpha = 0.7, show.legend = FALSE) +
-  labs(x = "Pair (GEDI rh - ALS rhz)", y = "Lin's CCC") +
+  labs(x = "Pair (GEDI rh - Airborne lidar rhz)", y = "Lin's CCC") +
   theme_fancy() +
   scale_color_manual(values = forest_state_colors) + 
   theme(
@@ -1023,7 +1023,7 @@ ccc_height_deg <- allGEDI2AB_ALS %>%
   geom_abline(slope = 1, intercept = 0, color = "gray70", linetype = "dashed", size = 0.7) +
   geom_text(data = ccc_forest_state_height, aes(x = 30, y = 60, label = annotation),  
             size = 2.5, color = "black") +  
-  labs(x = "ALS Relative Height (m)", y = "GEDI Relative Height (m)", color = "Density") + 
+  labs(x = "Airborne lidar Relative Height (m)", y = "GEDI Relative Height (m)", color = "Density") + 
   theme_bw() +
   facet_wrap(~ forest_state, ncol = 8) +  
   coord_cartesian(ylim = c(0, 60)) +
@@ -1041,7 +1041,7 @@ ccc_cover_deg <- allGEDI2AB_ALS_cover_long %>%
   geom_abline(slope = 1, intercept = 0, color = "gray70", linetype = "dashed", size = 0.7) +
   geom_text(data = ccc_forest_state_cover, aes(x = 0.5, y = 1.01, label = annotation),  
             size = 2.5, color = "black") +  
-  labs(x = "ALS Canopy Cover", y = "GEDI Canopy Cover", color = "Density") + 
+  labs(x = "Airborne lidar Canopy Cover", y = "GEDI Canopy Cover", color = "Density") + 
   scale_x_continuous(breaks = c(0, 0.5, 1), labels = c("0", "0.5", "1")) +  # Custom x-axis breaks
   theme_bw() +  
   coord_cartesian(ylim = c(0, 1)) +  
@@ -1088,7 +1088,7 @@ rm(allGEDI2AB_ALS_height_long, allGEDI2AB_ALS_cover_long, ccc_results_list,
 ## FIGURE 3 - GEDI Forest Class data across Amazonia 
 
 # Ordering of age within plots
-age_order <- c("<7", "7-15", "15-25", "25-40", "n/a")
+age_order <- c("<7", "7-15", "15-25", "25-38", "n/a")
 
 allGEDI2AB <- allGEDI2AB %>%
   mutate(
@@ -1780,7 +1780,7 @@ forest_state_combined <- bind_rows(
 forest_state_counts_combined <- forest_state_combined %>%
   group_by(Filter, forest_state) %>%
   summarise(Sample_Count = n(), .groups = "drop") %>%
-  mutate(forest_state = factor(forest_state, levels = c("PU", "Logged", "Burned 1", "Burned 2", "Burned 3", "Burned 4+")))
+  mutate(forest_state = factor(forest_state, levels = c("PU", "PB1", "PB2", "PB3+", "SU", "SB1", "SB2", "SB3+")))
 
 # Check the output to ensure counts are correct
 print(forest_state_counts_combined)
@@ -1832,8 +1832,8 @@ allGEDI2AB_ALSfilter2 <- allGEDI2AB_ALS %>%
 
 # Set rh and rhz columns for calculation (for example, rh25 and rhz25)
 # Run repeatedly along the GEDI profile e.g. rh25, rh50, rh75, rh95
-rh_col <- "rh25"
-rhz_col <- "rhz25"
+rh_col <- "rh95"
+rhz_col <- "rhz95"
 
 # Initialize an empty list to store results
 ccc_results_list <- list()
@@ -1841,10 +1841,10 @@ ccc_results_list <- list()
 # Height Calculations
 add_ccc_result("All", calculate_ccc(allGEDI2AB_ALSfilter1, rh_col, rhz_col), "Height")
 add_ccc_result("PU", calculate_ccc(allGEDI2AB_ALSfilter1, rh_col, rhz_col, "forest_state == 'PU'"), "Height")
-add_ccc_result("SU", calculate_ccc(allGEDI2AB_ALSfilter1, rh_col, rhz_col, "forest_state == 'SU'"), "Height")
 add_ccc_result("PB1", calculate_ccc(allGEDI2AB_ALSfilter1, rh_col, rhz_col, "forest_state == 'PB1'"), "Height")
 add_ccc_result("PB2", calculate_ccc(allGEDI2AB_ALSfilter1, rh_col, rhz_col, "forest_state == 'PB2'"), "Height")
 add_ccc_result("PB3+", calculate_ccc(allGEDI2AB_ALSfilter1, rh_col, rhz_col, "forest_state == 'PB3+'"), "Height")
+add_ccc_result("SU", calculate_ccc(allGEDI2AB_ALSfilter1, rh_col, rhz_col, "forest_state == 'SU'"), "Height")
 add_ccc_result("SB1", calculate_ccc(allGEDI2AB_ALSfilter1, rh_col, rhz_col, "forest_state == 'SB1'"), "Height")
 add_ccc_result("SB2", calculate_ccc(allGEDI2AB_ALSfilter1, rh_col, rhz_col, "forest_state == 'SB2'"), "Height")
 add_ccc_result("SB3+", calculate_ccc(allGEDI2AB_ALSfilter1, rh_col, rhz_col, "forest_state == 'SB3+'"), "Height")
@@ -1852,10 +1852,10 @@ add_ccc_result("SB3+", calculate_ccc(allGEDI2AB_ALSfilter1, rh_col, rhz_col, "fo
 # Canopy Cover Calculations (fixed, not based upon rh value)
 add_ccc_result("All", calculate_ccc_c(allGEDI2AB_ALSfilter1, "cover", "cancov"), "Canopy Cover")
 add_ccc_result("PU", calculate_ccc_c(allGEDI2AB_ALSfilter1, "cover", "cancov", "forest_state == 'PU'"), "Canopy Cover")
-add_ccc_result("SU", calculate_ccc_c(allGEDI2AB_ALSfilter1, "cover", "cancov", "forest_state == 'SU'"), "Canopy Cover")
 add_ccc_result("PB1", calculate_ccc_c(allGEDI2AB_ALSfilter1, "cover", "cancov", "forest_state == 'PB1'"), "Canopy Cover")
 add_ccc_result("PB2", calculate_ccc_c(allGEDI2AB_ALSfilter1, "cover", "cancov", "forest_state == 'PB2'"), "Canopy Cover")
 add_ccc_result("PB3+", calculate_ccc_c(allGEDI2AB_ALSfilter1, "cover", "cancov", "forest_state == 'PB3+'"), "Canopy Cover")
+add_ccc_result("SU", calculate_ccc_c(allGEDI2AB_ALSfilter1, "cover", "cancov", "forest_state == 'SU'"), "Canopy Cover")
 add_ccc_result("SB1", calculate_ccc_c(allGEDI2AB_ALSfilter1, "cover", "cancov", "forest_state == 'SB1'"), "Canopy Cover")
 add_ccc_result("SB2", calculate_ccc_c(allGEDI2AB_ALSfilter1, "cover", "cancov", "forest_state == 'SB2'"), "Canopy Cover")
 add_ccc_result("SB3+", calculate_ccc_c(allGEDI2AB_ALSfilter1, "cover", "cancov", "forest_state == 'SB3+'"), "Canopy Cover")
@@ -1869,8 +1869,8 @@ print(ccc_results_filter1)
 
 # Set rh and rhz columns for calculation (for example, rh25 and rhz25)
 # Run repeatedly along the GEDI profile e.g. rh25, rh50, rh75, rh95
-rh_col <- "rh25"
-rhz_col <- "rhz25"
+rh_col <- "rh95"
+rhz_col <- "rhz95"
 
 # Initialize an empty list to store results
 ccc_results_list <- list()
@@ -1878,10 +1878,10 @@ ccc_results_list <- list()
 # Height Calculations
 add_ccc_result("All", calculate_ccc(allGEDI2AB_ALSfilter2, rh_col, rhz_col), "Height")
 add_ccc_result("PU", calculate_ccc(allGEDI2AB_ALSfilter2, rh_col, rhz_col, "forest_state == 'PU'"), "Height")
-add_ccc_result("SU", calculate_ccc(allGEDI2AB_ALSfilter2, rh_col, rhz_col, "forest_state == 'SU'"), "Height")
 add_ccc_result("PB1", calculate_ccc(allGEDI2AB_ALSfilter2, rh_col, rhz_col, "forest_state == 'PB1'"), "Height")
 add_ccc_result("PB2", calculate_ccc(allGEDI2AB_ALSfilter2, rh_col, rhz_col, "forest_state == 'PB2'"), "Height")
 add_ccc_result("PB3+", calculate_ccc(allGEDI2AB_ALSfilter2, rh_col, rhz_col, "forest_state == 'PB3+'"), "Height")
+add_ccc_result("SU", calculate_ccc(allGEDI2AB_ALSfilter2, rh_col, rhz_col, "forest_state == 'SU'"), "Height")
 add_ccc_result("SB1", calculate_ccc(allGEDI2AB_ALSfilter2, rh_col, rhz_col, "forest_state == 'SB1'"), "Height")
 add_ccc_result("SB2", calculate_ccc(allGEDI2AB_ALSfilter2, rh_col, rhz_col, "forest_state == 'SB2'"), "Height")
 add_ccc_result("SB3+", calculate_ccc(allGEDI2AB_ALSfilter2, rh_col, rhz_col, "forest_state == 'SB3+'"), "Height")
@@ -1889,10 +1889,10 @@ add_ccc_result("SB3+", calculate_ccc(allGEDI2AB_ALSfilter2, rh_col, rhz_col, "fo
 # Canopy Cover Calculations (fixed, not based upon rh value)
 add_ccc_result("All", calculate_ccc_c(allGEDI2AB_ALSfilter2, "cover", "cancov"), "Canopy Cover")
 add_ccc_result("PU", calculate_ccc_c(allGEDI2AB_ALSfilter2, "cover", "cancov", "forest_state == 'PU'"), "Canopy Cover")
-add_ccc_result("SU", calculate_ccc_c(allGEDI2AB_ALSfilter2, "cover", "cancov", "forest_state == 'SU'"), "Canopy Cover")
 add_ccc_result("PB1", calculate_ccc_c(allGEDI2AB_ALSfilter2, "cover", "cancov", "forest_state == 'PB1'"), "Canopy Cover")
 add_ccc_result("PB2", calculate_ccc_c(allGEDI2AB_ALSfilter2, "cover", "cancov", "forest_state == 'PB2'"), "Canopy Cover")
 add_ccc_result("PB3+", calculate_ccc_c(allGEDI2AB_ALSfilter2, "cover", "cancov", "forest_state == 'PB3+'"), "Canopy Cover")
+add_ccc_result("SU", calculate_ccc_c(allGEDI2AB_ALSfilter2, "cover", "cancov", "forest_state == 'SU'"), "Canopy Cover")
 add_ccc_result("SB1", calculate_ccc_c(allGEDI2AB_ALSfilter2, "cover", "cancov", "forest_state == 'SB1'"), "Canopy Cover")
 add_ccc_result("SB2", calculate_ccc_c(allGEDI2AB_ALSfilter2, "cover", "cancov", "forest_state == 'SB2'"), "Canopy Cover")
 add_ccc_result("SB3+", calculate_ccc_c(allGEDI2AB_ALSfilter2, "cover", "cancov", "forest_state == 'SB3+'"), "Canopy Cover")
