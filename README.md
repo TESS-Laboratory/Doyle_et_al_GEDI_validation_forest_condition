@@ -14,7 +14,7 @@ Repository: DOI: 10.5281/zenodo.14103328
 
 (A) Compare the relative accuracy of estimated height profiles and canopy cover derived from spaceborne lidar against comparable metrics derived from airborne lidar across a gradient of forest degradation.
 
-(B) Evaluate GEDI forest structure variation along a gradient of forest degraadtion.
+(B) Evaluate GEDI forest structure variation along a gradient of forest degradtion.
 
 (C) Investigate
 
