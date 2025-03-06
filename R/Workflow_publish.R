@@ -1,5 +1,5 @@
-## Script for the analysis of paper 'Doyle et al., 2024' for the validation of the use of GEDI data 
-## in degraded Amazon rainforest to investigate forest condition
+## Script for the analysis of paper 'Doyle et al., 2024' to advance the use of GEDI data
+# to quantify forest structural state along a gradient of forest degradation
 
 # Reload all packages and functions
 reload <- function() {
@@ -487,12 +487,12 @@ rm(merged_df, DAAC18_19Smetrics, DAAC1821_21Smetrics, CAUT23_20Smetrics1, CAUT23
    allGEDI2AB_19S, allGEDI2AB_20S, allGEDI2AB_21S, DAAC18_19Sfinal, DAAC1821_21Sfinal, CAUT23_20Sfinal1,
    CAUT23_20Sfinal2)
 
-# ------- Forest spectral classification UNFINISHED GEE REFERENCE ---------
+# ------- Forest spectral classification ---------
 
-# ##### Need to put in file structure here - maybe list at the bottom of the Google Earth Engine code??? 
-#ALSO CHECK THE TITLES OF SECTIONS
+# Steps to download the MapBiomas data filea and create folder stucture is provided in
+# GEE_script.R
 
-# (1) MapBiomas version 9 secondary forest of Brazil maps
+# (1) MapBiomas Collection 9 secondary forest of Brazil maps
 
 # Run function to pre-process secondary forest multispectral data from files for each year of ALS collection
 process_secondary_forest(2023) 
@@ -503,12 +503,9 @@ process_secondary_forest(2018)
 
 
 
-# (2) Fire data
+# (2) MapBiomas Fire data Collection 3
 
-# Mapbiomas fire frequency layer downloaded from Google Earth Engine toolkit below (version 3.0)
 # for states Rondonia, Amazonas, Para and Mato Grosso
-# git clone https://earthengine.googlesource.com/users/mapbiomas/user-toolkit
-# Updated link: https://earthengine.googlesource.com/users/mapbiomas/user-toolkit/+/59f6cf84a1c91fb9fe116c939910bb8453302e60/mapbiomas-user-toolkit-download-mosaics.js
 
 
 # Run function to pre-process fire frequency multispectral data (uses functions from process_secondary_forest)
@@ -528,7 +525,7 @@ process_time_since_fire(2018)
 
 
 
-# (3) Forest validation layer
+# (3) Forest validation layer (MapBiomas LULC Collection 9)
 
 # Validate if forest extent is still classified as forest after burn events
 
@@ -542,7 +539,7 @@ process_forest_validation(2018)
 
 
 
-# ----------- GEDI classification extraction EDIT 5 IN WRITE TO FILE --------------
+# ----------- GEDI classification extraction --------------
 
 # Using a function that extracts raster values for each ALS year per GEDI point:
 # Define raster file paths
@@ -640,11 +637,11 @@ sf::st_write(allGEDI2AB_amp, "/Users/emilydoyle/Documents/workspace_data/Doyle_e
 sf::st_write(allGEDI2AB, "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI2AB.fgb", delete_dsn = TRUE, overwrite = TRUE)
 
 
-#allGEDI2A <- read_sf("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI2A5.fgb")
-#allGEDI2AB <- read_sf("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI2AB5.fgb")
-#allGEDI2AB_ALS <- read_sf("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI2AB_ALS5.fgb")
-#allGEDI <- read_sf("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI5.fgb")
-#allGEDI2AB_amp <- read_sf("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI2AB_amp5.fgb")
+#allGEDI2A <- read_sf("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI2A.fgb")
+#allGEDI2AB <- read_sf("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI2AB.fgb")
+#allGEDI2AB_ALS <- read_sf("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI2AB_ALS.fgb")
+#allGEDI <- read_sf("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI.fgb")
+#allGEDI2AB_amp <- read_sf("/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI2AB_amp.fgb")
 
 
 # Tidy environment
@@ -1088,22 +1085,23 @@ rm(allGEDI2AB_ALS_height_long, allGEDI2AB_ALS_cover_long, ccc_results_list,
 ## FIGURE 3 - GEDI Forest Class data across Amazonia 
 
 # Ordering of age within plots
-age_order <- c("<7", "7-15", "15-25", "25-38", "n/a")
+age_order <- c("<7", "7-15", "15-25", "25-38", ">38")
+
 
 allGEDI2AB <- allGEDI2AB %>%
   mutate(
     age_category = factor(age_category, levels = age_order))
-   
+
 
 allGEDI <- allGEDI %>%
   mutate(
     age_category = factor(age_category, levels = age_order))
-  
+
 
 allGEDI <- allGEDI %>%
   filter(l4_quality_flag == 1) %>%
   filter(agbd < 800)
- 
+
 
 # Order the Forest Class types for output
 allGEDI2AB <- allGEDI2AB %>%
@@ -1197,6 +1195,7 @@ cover_violin <- cover_violin +
     legend.box.margin = margin(0, 0, 0, 0, unit = "cm")  # Keeps spacing clean
   )
 
+
 # Combine the plots using patchwork and reduce space between plots
 figure3 <- (height_violin / cover_violin / agbd_violin) +
   plot_annotation(tag_levels = 'A') &
@@ -1205,6 +1204,7 @@ figure3 <- (height_violin / cover_violin / agbd_violin) +
 
 # Print the combined plot
 print(figure3)
+
 
 ggsave(figure3,
        filename = "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Publication_outputs/GEDI_gradient.png",
@@ -1246,6 +1246,7 @@ rm(filtered_data1, filtered_data2, filtered_data3, age_order, height_violin, cov
 # Keep the Forest Class variable separate before PCA
 forest_state_type <- allGEDI2AB$forest_state
 
+
 # Create PCA dataset, removing unnecessary columns for PCA
 allGEDI2ABPCA <- allGEDI2AB %>%
   dplyr::select(-starts_with("rh"), rh_min, Rh_slope, Rh_variance, Rh_intercept, rh_sd, rh_skew, rh_kurt, rh_mean,
@@ -1253,8 +1254,10 @@ allGEDI2ABPCA <- allGEDI2AB %>%
          fhd_normal, pai, cover, num_detectedmodes, -beam, -year, -solar_elevation, -elev_highestreturn,
          -elev_lowestmode,-sensitivity, -shot_number, -degrade_flag, -modis_treecover, -landsat_treecover,
          -ALS_CRS, -ALS_year,-l2b_quality_flag, -omega, -TSF, -forest_state, -age_category,
-         -burn_frequency, -pgap_theta_error, -geometry)
+         -burn_frequency, -pgap_theta_error)
 
+# Preserve geometry from allGEDI2ABPCA
+geometry_column <- allGEDI2ABPCA$geometry  
 
 # Removing variables that ranked lowest in the explanation of variance for both PC's
 allGEDI2ABPCA <- allGEDI2ABPCA %>%
@@ -1589,6 +1592,22 @@ ggsave(
   width = 16, height = 18, units = "cm"
 )
 
+
+# Recombine the PCR ratio with allGEDI2ABPCA for potential plotting
+
+gpca_subset <- gpca |> 
+  dplyr::select(rowid, pc_ratio)  
+
+# Perform the join (without geometry)
+allGEDI2ABPCA <- allGEDI2ABPCA |> 
+  dplyr::left_join(gpca_subset, by = "rowid")
+
+# Add geometry back
+allGEDI2ABPCA$geometry <- geometry_column
+allGEDI2ABPCA <- st_as_sf(allGEDI2ABPCA)
+
+
+sf::st_write(allGEDI2ABPCA, "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Output_data/allGEDI2ABPCA.fgb", delete_dsn = TRUE, overwrite = TRUE)
 
 
 
@@ -2009,6 +2028,8 @@ ggsave(figure4,
        filename = "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Publication_outputs/PCA_25loadings.png",
        width = 17, height = 20, units = "cm"
 )
+
+
 
 
 

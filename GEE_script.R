@@ -1,5 +1,5 @@
 # Google Earth Engine script to download various MapBiomas multispectral data to be used to classify
-# GEDI forest condition. Edit the years for 2018, 2021 and 2023 to correspond to ALS data collection
+# GEDI forest structural state. Edit the years and run for 2018, 2021 and 2023 to correspond to ALS data collection
 
 
 // Load the MapBiomas Secondary Vegetation Age Layer
@@ -141,7 +141,42 @@ Export.image.toDrive({
 // Print available bands for debugging
 print('MapBiomas Bands:', mapbiomas.bandNames());
 
-# Download NAME THE NUMBERS OF THE FILE NAMES AND SAY WHAT FOLDERS
+
+
+
+### Steps to download the data from Google Drive for each multispectral data category
+
+## Create folders in "Input data"
+# input_data_dir <- "/Users/emilydoyle/Documents/workspace_data/Doyle_et_al_GEDI_validation_forest_condition_data/Input_data"
+# 
+# # Define the main category folders
+# category_folders <- c("Secondary_forest", "Fire_data", "Forest_validation")
+# 
+# # Define subfolder names for each category
+# subfolder_names <- c("2018", "2021", "2023")
+# 
+# for (category in category_folders) {
+#   category_path <- file.path(input_data_dir, category)
+#   dir.create(category_path, showWarnings = FALSE, recursive = TRUE)
+#   
+#   for (subfolder in subfolder_names) {
+#     dir.create(file.path(category_path, subfolder), showWarnings = FALSE, recursive = TRUE)
+#   }
+# }
+
+# For Secondary_forest files, download from Google Drive files ending in: "0000000000-0000000000.tif",
+# "0000000000-0000065536.tif","0000065536-0000065536.tif" into corresponding year (2018, 2021, 2023) folders
+
+# For Fire_data files, download from Google Drive for Fire_frequency files ending in: "0000000000-0000000000.tif",
+# "0000000000-0000065536.tif","0000065536-0000065536.tif", 
+# For Time_Since_Lasr_Fire download from Google Drive: "0000000000-0000046592.tif",
+# "0000046592-0000000000.tif", "0000046592-0000046592.tif" into corresponding year (2018, 2021, 2023) folders
+
+# For Forest_validation files, download from Google Drive files ending in: "0000000000-0000000000.tif",
+# "0000000000-0000065536.tif","0000065536-0000065536.tif", "0000065536-0000000000.tif" into corresponding year
+# (2018, 2021, 2023) folders
+
+
 
 
 

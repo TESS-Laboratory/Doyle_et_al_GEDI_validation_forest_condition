@@ -1086,15 +1086,15 @@ classify_forest_state <- function(df) {
     mutate(
       burn_frequency1 = ifelse(forest_type == "S" & secondary_age < (years_since_fire - 5), 0, burn_frequency),
       burn_frequency1 = ifelse(is.na(burn_frequency1), 0, burn_frequency1),
-    
-    # If burn_frequency1 is now 0, set TSF to NA
-    TSF = ifelse(burn_frequency1 == 0 & forest_type == "S", NA_real_, TSF)
+      
+      # If burn_frequency1 is now 0, set TSF to NA
+      TSF = ifelse(burn_frequency1 == 0 & forest_type == "S", NA_real_, TSF)
     ) %>%
     
     # Step 4: Classify forest state using forest_type and burn frequency
     mutate(
       forest_state = case_when(
-        burn_frequency1 == 0 & forest_type == "P" ~ "Intact",  
+        burn_frequency1 == 0 & forest_type == "P" ~ "PU",  
         burn_frequency1 == 0 & forest_type == "S" ~ "SU",  
         burn_frequency1 == 1 & forest_type == "P" ~ "PB1",
         burn_frequency1 == 2 & forest_type == "P" ~ "PB2",
@@ -1115,11 +1115,28 @@ classify_forest_state <- function(df) {
         TSF <= 6 ~ "<7",
         TSF > 6 & TSF <= 15 ~ "7-15",
         TSF > 15 & TSF <= 25 ~ "15-25",
-        TSF > 25 & TSF <= 39 ~ "25-40",
-        TRUE ~ NA_character_  # Keep NA for invalid cases
+        TSF > 25 & TSF <= 38 ~ "25-38",
+        is.na(TSF) | TSF > 38 ~ ">38"  # Assign ">38" if TSF is NA or greater than 38
       )
     )
 }
+
+# Function to remove additional columns from classification and project CRS
+
+tidy_classification <- function(df, target_crs = NULL) {
+  df <- df %>%
+    # Tidy dataframe columns by removing unwanted columns
+    select(-secondary_age, -years_since_fire, -forest_validation, -burn_frequency, -forest_type, -time_since_fire) %>%
+    rename(burn_frequency = burn_frequency1)  # Rename column properly
+  
+  # Reproject the dataset for consistency
+  if ("sf" %in% class(df) & !is.null(target_crs)) {
+    df <- st_transform(df, target_crs)
+  }
+  
+  return(df)
+}
+
   
 # Function to remove additional columns from classification and project CRS
 
@@ -1304,38 +1321,36 @@ calculate_pearson <- function(data, condition, rh_col, rhz_col) {
 # Fit multinomial logistic regression
 fit_nplot_mnlr <- function(control_var) {
   control_var <- enquo(control_var)
+  # browser()
   # Create the formula using the symbol
   formula <- as.formula(paste("forest_state ~", quo_name(control_var)))
   mnlr <- nnet::multinom(formula, data = gpca)
-  
   cli::cli_alert_info("{quo_name(control_var)} model AIC: {AIC(mnlr)}")
-  
   # Predict probabilities using marginaleffects package
   preds <- as_tibble(marginaleffects::predictions(mnlr, newdata = "balanced", type = "probs"))
-  
   # Plot the results
   preds |>
     ggplot() +
     aes(x = !!control_var, y = estimate, fill = group, group = group) +
     geom_ribbon(aes(ymin = conf.low, ymax = conf.high),
-                color = NA,  # Remove gray outline
-                alpha = 0.8   # Transparency for ribbons
+                color = NA, # Remove gray outline
+                alpha = 0.8 # Transparency for ribbons
     ) +
-    scale_fill_manual(values = forest_state_colors, name = "Forest State") +  
+    scale_fill_manual(values = forest_state_colors, name = "Forest Class") +
     theme_linedraw() +
-    theme_fancy() +
-    scale_y_sqrt() +
+    # theme_fancy() +
+    scale_y_continuous(trans = LightLogR::symlog_trans(10, thr = 1e-2), breaks = seq(0, 1, by = 0.25)) +
+    coord_cartesian(ylim = c(0, 1)) +
     labs(
       x = quo_name(control_var),
-      y = "Probability", 
-      fill = "Forest State",  # Legend title update
-      caption = glue::glue("AIC: {round(AIC(mnlr),1)}")  # Add AIC caption
+      y = "Probability",
+      fill = "Forest State", # Legend title update
+      caption = glue::glue("AIC: {round(AIC(mnlr),1)}") # Add AIC caption
     ) +
     theme(
       legend.position = "right"
     )
 }
-
 
 
 

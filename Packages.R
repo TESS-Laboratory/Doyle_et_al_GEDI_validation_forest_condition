@@ -46,31 +46,23 @@ library(leafgl)
 library(patchwork)
 library(grid)
 library(reshape2)
-#check
 library(performance)
 library(kableExtra)
 library(scales)
-
-
-
-
+library(LightLogR)
 
 # Communications
 library(cli)
-
 
 # Pipeline work 
 library(targets)
 
 
-# NOT SURE WHERE THIS ONE GOES
+
+
 library(lmomco)
+library(forcats)
 
 
 
-# Install and load the ggrepel package if not already done
-if (!requireNamespace("ggrepel", quietly = TRUE)) {
-  install.packages("ggrepel")
-}
-library(ggrepel)
 
